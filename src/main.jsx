@@ -6,7 +6,7 @@ import "./index.css";
 import "./styles/index.scss";
 
 createRoot(document.getElementById("root")).render(
-  <BrowserRouter>
+  <BrowserRouter basename="/fall2025portfolio">
     <App />
   </BrowserRouter>
 );
