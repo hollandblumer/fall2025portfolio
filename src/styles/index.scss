@@ -1,4 +1,6 @@
-@import "./nav.scss";
-@import "./preloader.scss";
-@import "./role.scss";
-@import "./work.scss";
+@use "./nav.scss";
+@use "./work.scss";
+@use "./loading.scss";
+@use "./projects.scss";
+@use "./pagesstrings.scss";
+@use "./hero.scss";

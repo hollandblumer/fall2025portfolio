@@ -1,0 +1,11 @@
+.loading-container {
+  height: 100%;
+  width: 100%;
+  display: grid;
+  align-items: start;
+  justify-items: center;
+  background: transparent;
+  font-family: "Outfit", sans-serif;
+  position: absolute;
+  z-index: 1000000;
+}

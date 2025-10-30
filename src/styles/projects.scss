@@ -1,0 +1,39 @@
+.project-page {
+  max-width: 850px;
+  margin: 0 auto;
+  padding: 80px 20px;
+}
+
+.project-hero img {
+  width: 100%;
+  margin-bottom: 2rem;
+}
+
+.text-block {
+  margin: 2.5rem 0;
+  font-size: 1.15rem;
+}
+
+.image-block img,
+.video-block video {
+  width: 100%;
+
+  margin: 2rem 0;
+}
+
+.image-grid {
+  background: #f8f8f8;
+  padding: 1.5rem;
+  margin: 3rem 0;
+}
+
+.image-grid .grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.image-grid img {
+  width: 100%;
+  border-radius: 8px;
+}

@@ -1,4 +1,9 @@
 import { useEffect } from "react";
+import DiamondTitle from "../components/DiamondTitle";
+import DiamondTitle2 from "../components/DiamondTitle2";
+
+import DiamondTitleFluctuate from "../components/DiamondTitleFluctuate";
+import PageStrings from "../components/PagesStrings";
 
 export default function Work() {
   useEffect(() => {
@@ -31,7 +36,30 @@ export default function Work() {
   return (
     <main className="projects-section page">
       <div className="projects-header">
-        <h2>PROJECTS</h2>
+        {/*   <DiamondTitleFluctuate
+          text="WORK"
+          minW={4}
+          maxW={10}
+          periodSec={3.5}
+          holdMs={140}
+          letterSpacing={0.025}
+          fillSolid="#991a1aff"
+        /> */}
+
+        <div style={{ width: "100%", maxWidth: 1000, margin: "0 auto" }}>
+          <PageStrings
+            text="work"
+            densityScale={0.9}
+            maxWordWidthFrac={0.86}
+            diamondColor="#dcd7ba"
+            stringColor="#E6C46E"
+            showStrings={false}
+            zigStrength={0.9}
+            haloRadiusPx={72}
+            haloSoftPx={22}
+          />
+        </div>
+
         <div className="filter-menu">
           <button className="filter-button active">FEATURED</button>
           <button className="filter-button">ALL</button>
@@ -47,7 +75,18 @@ export default function Work() {
             src="https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800"
             alt="Project 1"
           />
-          <h3>Vevo</h3>
+          <h3 style={{ margin: 0, lineHeight: 1.4, whiteSpace: "nowrap" }}>
+            <DiamondTitle
+              text="VEVO"
+              // You tuned the look at 50px and liked it:
+              fontPx={14}
+              baselinePx={50} // keep look identical at this size
+              maxW={5}
+              letterSpacing={0.3}
+              fillSolid="#991a1aff"
+            />
+          </h3>
+
           <p>
             A dynamic new visual language for the world’s leading music video
             network.
@@ -59,7 +98,17 @@ export default function Work() {
             src="https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?w=800"
             alt="Project 2"
           />
-          <h3>Dichotomies</h3>
+          <h3 style={{ margin: 0, lineHeight: 1.4, whiteSpace: "nowrap" }}>
+            <DiamondTitle
+              text="VEVO"
+              // You tuned the look at 50px and liked it:
+              fontPx={14}
+              baselinePx={50} // keep look identical at this size
+              maxW={10}
+              letterSpacing={0.3}
+              fillSolid="#991a1aff"
+            />
+          </h3>
           <p>
             Something can be simple and boring, and complex and interesting —
             but what makes something simple and interesting?
@@ -71,7 +120,17 @@ export default function Work() {
             src="https://images.unsplash.com/photo-1511765224389-37f0e77cf0eb?w=800"
             alt="Project 3"
           />
-          <h3>YouTube Music: Recap 2023</h3>
+          <h3 style={{ margin: 0, lineHeight: 1.4, whiteSpace: "nowrap" }}>
+            <DiamondTitle
+              text="VEVO"
+              // You tuned the look at 50px and liked it:
+              fontPx={24}
+              baselinePx={50} // keep look identical at this size
+              maxW={6}
+              letterSpacing={0.1}
+              fillSolid="#991a1aff"
+            />
+          </h3>
           <p>
             Animated illustrations celebrating a year’s worth of music listening
             and discovery.

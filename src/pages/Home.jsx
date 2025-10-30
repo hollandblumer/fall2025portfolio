@@ -1,46 +1,31 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import CanvasParticles from "../components/CanvasParticles.jsx";
-import Role3D from "../components/Role3D.jsx";
-import CanvasText from "../components/CanvasText.jsx";
+import Hero from "../components/Hero.jsx";
 
 export default function Home() {
   const { hash } = useLocation();
-  const [isLoading, setIsLoading] = useState(true);
+  const [showPreloader, setShowPreloader] = useState(true);
 
-  // Simulate fake loading
+  // Fake 3s brand preloader
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 2000); // 2s fake load
+    const timer = setTimeout(() => setShowPreloader(false), 3000);
     return () => clearTimeout(timer);
   }, []);
 
-  // Smooth-scroll for #about
+  // Smooth-scroll after Hero is mounted (texture already behind)
   useEffect(() => {
-    if (hash === "#about") {
-      document.getElementById("about")?.scrollIntoView({ behavior: "smooth" });
+    if (!showPreloader && hash === "#about") {
+      requestAnimationFrame(() => {
+        document
+          .getElementById("about")
+          ?.scrollIntoView({ behavior: "smooth" });
+      });
     }
-  }, [hash]);
+  }, [hash, showPreloader]);
 
   return (
-    <main className="home">
-      {isLoading && <Preloader />}
-      {!isLoading && (
-        <>
-          <CanvasParticles />
-
-          <Role3D />
-        </>
-      )}
+    <main className="home" style={{ minHeight: "100svh" }}>
+      <Hero />
     </main>
-  );
-}
-
-/* --- Internal Preloader Component --- */
-function Preloader() {
-  return (
-    <div className="preloader">
-      <div className="spinner" />
-      <p className="loading-text">Loading fragments...</p>
-    </div>
   );
 }

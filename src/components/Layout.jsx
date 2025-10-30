@@ -1,10 +1,12 @@
-import { Outlet } from "react-router-dom";
-import Nav from "./Nav.jsx";
+import { Outlet, useLocation } from "react-router-dom";
+import Nav from "./Nav";
 
-export default function Layout() {
+export default function RootLayout() {
+  const { pathname } = useLocation();
+  const hideNav = pathname === "/loading"; // ← adjust if your route differs
+
   return (
     <>
-      <Nav />
       <Outlet />
     </>
   );
