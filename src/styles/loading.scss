@@ -1,11 +1,33 @@
-.loading-container {
-  height: 100%;
+/* e.g., src/pages/loading.css (import it in the page or globally) */
+.loading-hero {
+  position: relative;
   width: 100%;
-  display: grid;
-  align-items: start;
-  justify-items: center;
-  background: transparent;
-  font-family: "Outfit", sans-serif;
+  min-height: 100svh; /* full screen */
+  overflow: hidden;
+}
+
+.loading-bg {
   position: absolute;
-  z-index: 1000000;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none; /* painter is purely visual */
+}
+
+.loading-content {
+  position: relative;
+  z-index: 1;
+  width: min(1200px, 92vw);
+  margin: 0 auto;
+  min-height: 100svh; /* vertical center on screen */
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* center horizontally */
+  justify-content: center; /* center vertically */
+  gap: 10px; /* space between title & subtitle */
+  background: transparent;
+}
+
+.loading-sub {
+  font-size: 28px; /* affects its canvas layout since it reads CSS font px */
+  line-height: 1;
 }

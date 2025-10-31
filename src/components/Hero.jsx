@@ -1,9 +1,12 @@
+// src/components/Hero.jsx
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import HeroNav from "../components/nav/HeroNav.jsx";
+import About from "./about/About.jsx";
 
 const P5_CDN = "https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.2/p5.min.js";
 
-/* ----------------------------- p5 SINGLETON LOADER ----------------------------- */
+/* ----------------------------- p5 loader (singleton) ---------------------------- */
 const ensureP5 = (() => {
   let promise;
   return () => {
@@ -20,31 +23,45 @@ const ensureP5 = (() => {
   };
 })();
 
-/* ------------------------------ HANDSHAKE HELPERS ------------------------------ */
+/* -------------------------------- handshake ----------------------------------- */
 async function waitForP5Canvas(timeout = 4000) {
   const t0 = performance.now();
   while (!window.__p5CanvasForThree) {
     if (performance.now() - t0 > timeout)
-      throw new Error("p5 canvas not ready in time");
+      throw new Error("p5 canvas not ready");
+    // eslint-disable-next-line no-await-in-loop
     await new Promise((r) => setTimeout(r, 16));
   }
   return window.__p5CanvasForThree;
 }
 
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+const easeInOutCubic = (t) =>
+  t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
 export default function Hero() {
-  // HERO-only refs
-  const heroRef = useRef(null); // this wraps ONLY the hero (texture lives here)
-  const threeRef = useRef(null); // THREE mount inside hero
-  const p5HostRef = useRef(null); // hidden p5 host
+  const heroRef = useRef(null);
+  const threeRef = useRef(null);
+  const p5HostRef = useRef(null);
 
   const labelRefs = {
-    social: useRef(null),
-    contact: useRef(null),
-    work: useRef(null),
     about: useRef(null),
+    work: useRef(null),
+    contact: useRef(null),
+    social: useRef(null),
   };
 
-  const [menuOpen, setMenuOpen] = useState(false);
+  // Social chip DOM refs
+  const socialRefs = {
+    linkedin: useRef(null),
+    instagram: useRef(null),
+    github: useRef(null),
+    codepen: useRef(null),
+  };
+
+  const [coverOpen, setCoverOpen] = useState(false); // full-screen menu cover
+  const [btnMode, setBtnMode] = useState("restart"); // 'restart' ↻ on hero; 'up' ↑ on about
 
   useEffect(() => {
     let alive = true;
@@ -54,29 +71,105 @@ export default function Hero() {
       camera,
       clock,
       rafId = 0;
-    let wave, seamVeil;
+    let wave, seamVeil, tex;
     let xCurveBase,
       zCurveBase,
       xCurve,
       zCurve,
       curveShift = 0;
-    let tex;
-    let cleanupP5 = null;
-    let cleanupThree = null;
-    let ro; // ResizeObserver for hero
+    let cleanupP5 = null,
+      cleanupThree = null,
+      ro;
 
-    // labels state (scoped)
+    // INTRO slide (top -> center-ish)
+    const intro = { active: true, started: performance.now(), duration: 900 };
+
+    // ABOUT-only fall (DOM-based start Y)
+    const aboutFall = {
+      active: false,
+      y: 0,
+      vy: 0,
+      ay: 10.05,
+      bottomY: 0,
+      restoring: false,
+      restoreStart: 0,
+      restoreDur: 600,
+    };
+
+    // SOCIAL chips state (lives outside React to avoid re-renders)
+    const social = {
+      active: false,
+      items: [
+        {
+          key: "linkedin",
+          ref: null,
+          href: "https://www.linkedin.com/in/hollandblumer/",
+          label: "in",
+          bg: "#0A66C2",
+          fg: "#fff",
+          u: -0.04,
+          delay: 0,
+          speed: 0.012,
+        },
+        {
+          key: "instagram",
+          ref: null,
+          href: "https://www.instagram.com/",
+          label: "IG",
+          bg: "#E1306C",
+          fg: "#fff",
+          u: -0.04,
+          delay: 240,
+          speed: 0.012,
+        },
+        {
+          key: "github",
+          ref: null,
+          href: "https://github.com/hollandblumer",
+          label: "GH",
+          bg: "#171515",
+          fg: "#fff",
+          u: -0.04,
+          delay: 480,
+          speed: 0.012,
+        },
+        {
+          key: "codepen",
+          ref: null,
+          href: "https://codepen.io/",
+          label: "CP",
+          bg: "#111111",
+          fg: "#fff",
+          u: -0.04,
+          delay: 720,
+          speed: 0.012,
+        },
+      ],
+      started: 0,
+    };
+
+    // attach DOM refs now that we’re in effect
+    social.items.forEach((it) => {
+      it.ref = socialRefs[it.key].current;
+      if (it.ref) {
+        it.ref.style.opacity = "0";
+        it.ref.style.pointerEvents = "none";
+        it.ref.style.transform = "translate(-50%,-50%) scale(0.85)";
+      }
+    });
+
+    // ABOUT, WORK, CONTACT, SOCIAL
     const LABELS = [
-      { key: "social", t: -0.14, settling: true, forceBottom: false },
-      { key: "contact", t: -0.18, settling: true, forceBottom: false },
-      { key: "work", t: -0.22, settling: true, forceBottom: false },
-      { key: "about", t: -0.26, settling: true, forceBottom: false },
+      { key: "about", t: -0.26 },
+      { key: "work", t: -0.22 },
+      { key: "contact", t: -0.18 },
+      { key: "social", t: -0.14 },
     ];
 
     const getW = () => threeRef.current?.clientWidth || window.innerWidth;
     const getH = () => threeRef.current?.clientHeight || window.innerHeight;
 
-    /* --------------------------------- THREE MESHES --------------------------------- */
+    /* --------------------------------- THREE bits ---------------------------------- */
     class Wave extends THREE.Mesh {
       constructor(xCurve, zCurve, gridTex) {
         const geom = new THREE.PlaneGeometry(100, 100, 160, 160);
@@ -84,7 +177,9 @@ export default function Hero() {
         const mat = new THREE.ShaderMaterial({
           uniforms: {
             map: { value: gridTex },
-            offsetRepeat: { value: new THREE.Vector4(0, 0, 1.5, 2.0) },
+            offsetRepeat: {
+              value: new THREE.Vector4(0.0011, 0.0, 1.503, 2.011),
+            },
             xCurve: { value: xCurve },
             zCurve: { value: zCurve },
           },
@@ -115,8 +210,13 @@ export default function Hero() {
           `,
           fragmentShader: `
             uniform sampler2D map; uniform vec4 offsetRepeat; varying vec2 vUv;
-            void main(){ vec2 uv=vUv*offsetRepeat.zw+offsetRepeat.xy; gl_FragColor=texture2D(map,uv); }
+            void main(){
+              vec2 uv = vUv * offsetRepeat.zw + offsetRepeat.xy;
+              uv = uv * 0.994 + 0.003; // inner-bleed kills texture seam
+              gl_FragColor = texture2D(map, uv);
+            }
           `,
+          transparent: false,
         });
         super(geom, mat);
         this.scrollSpeed = 0.05;
@@ -129,7 +229,7 @@ export default function Hero() {
 
     class SeamVeil extends THREE.Mesh {
       constructor(xPos, height) {
-        const w = 2.6,
+        const w = 3.2,
           h = height;
         const geom = new THREE.PlaneGeometry(w, h, 1, 1);
         geom.rotateY(Math.PI / 2);
@@ -154,25 +254,24 @@ export default function Hero() {
         c.height = h;
         const ctx = c.getContext("2d");
         const g = ctx.createLinearGradient(0, 0, 0, h);
-        g.addColorStop(0.0, "rgba(255,226,120,0.26)");
-        g.addColorStop(0.5, "rgba(231,181,0,0.40)");
-        g.addColorStop(1.0, "rgba(255,226,120,0.26)");
+        g.addColorStop(0.0, "rgba(255,226,120,0.20)");
+        g.addColorStop(0.5, "rgba(231,181,0,0.36)");
+        g.addColorStop(1.0, "rgba(255,226,120,0.20)");
         ctx.fillStyle = g;
         ctx.fillRect(0, 0, w, h);
         const img = ctx.getImageData(0, 0, w, h),
           d = img.data;
-        for (let i = 0; i < d.length; i += 4) {
+        for (let i = 0; i < d.length; i += 4)
           d[i + 3] = Math.min(
             255,
-            Math.max(0, d[i + 3] + (Math.random() * 64 - 32))
+            Math.max(0, d[i + 3] + (Math.random() * 40 - 20))
           );
-        }
         ctx.putImageData(img, 0, 0);
         return new THREE.CanvasTexture(c);
       }
     }
 
-    /* ------------------------------ LABEL MATH HELPERS ------------------------------ */
+    /* -------------------------------- seam helpers --------------------------------- */
     const catmull = (p0, p1, p2, p3, t) => {
       const t2 = t * t,
         t3 = t2 * t;
@@ -196,9 +295,9 @@ export default function Hero() {
     };
     const sampleCurve = (arr, u) => {
       const segs = arr.length === 5 ? 4 : 3;
-      let pt = THREE.MathUtils.clamp(u, 0, 1) * segs;
-      let i = Math.floor(pt);
-      let f = pt - i;
+      let pt = clamp(u, 0, 1) * segs;
+      let i = Math.floor(pt),
+        f = pt - i;
       i = Math.max(0, Math.min(segs - 1, i));
       const p0 = arr[Math.max(i - 1, 0)],
         p1 = arr[i],
@@ -222,10 +321,23 @@ export default function Hero() {
         z: p.z,
       };
     };
-    const findUForScreenY = (targetY, biasToBottom = false) => {
+
+    const targetScreenYs = () => {
+      const h = getH();
+      const first = labelRefs.about.current;
+      const fs = first
+        ? parseFloat(getComputedStyle(first).fontSize) || 24
+        : 24;
+      const gap = Math.max(28, Math.min(100, fs * 4.85));
+      const n = 4;
+      const center = h * 0.5;
+      const start = center - ((n - 1) * gap) / 2;
+      return new Array(n).fill(0).map((_, i) => start + i * gap);
+    };
+
+    const findUForScreenY = (targetY) => {
       let lo = -0.02,
         hi = 1.02;
-      if (biasToBottom) lo = 0.4;
       let bestU = lo,
         bestDy = Infinity;
       for (let i = 0; i < 22; i++) {
@@ -239,22 +351,10 @@ export default function Hero() {
         if (y < targetY) lo = mid;
         else hi = mid;
       }
-      return bestU;
-    };
-    const targetScreenYs = () => {
-      const h = getH();
-      const center = h * 0.5;
-      const first = labelRefs.social.current;
-      const fs = first
-        ? parseFloat(getComputedStyle(first).fontSize) || 24
-        : 24;
-      const gap = Math.max(28, Math.min(60, fs * 1.35));
-      const n = 4;
-      const start = center - ((n - 1) * gap) / 2;
-      return new Array(n).fill(0).map((_, i) => start + i * gap);
+      return Math.min(0.985, bestU);
     };
 
-    /* ------------------------------------ p5 BOOT ----------------------------------- */
+    /* ------------------------------------ p5 boot ----------------------------------- */
     async function bootP5() {
       const TEX_N = 1024;
       const PAINT_FRAMES = 320;
@@ -262,9 +362,8 @@ export default function Hero() {
       let particles = [],
         particles_2 = [];
       let parNum, mySize;
-      const Y_LIGHT = "#FFE37F";
-      const Y_DEEP = "#E7B500";
-      const colorbg = "#FFFFFF";
+      const Y_LIGHT = "#FFE37F",
+        Y_DEEP = "#E7B500";
 
       const fragFns = `
         #define PI 3.141592653589793
@@ -285,11 +384,11 @@ export default function Hero() {
           gx0-=sz0*(step(0.0,gx0)-0.5); gy0-=sz0*(step(0.0,gy0)-0.5);
           vec4 gx1=ixy1/7.0, gy1=fract(floor(gx1)/7.0)-0.5; gx1=fract(gx1);
           vec4 gz1=vec4(0.5)-abs(gx1)-abs(gy1); vec4 sz1=step(gz1,vec4(0.0));
-          gx1-=sz1*(step(0.0,gx1)-0.5); gy1-=sz1*(step(0.0,gy1)-0.5);
+          gx1-=sz1*(step(0.0,gx1)-0.5); gy1-=sz1*(step(0.0,gy0)-0.5);
           vec3 g000=vec3(gx0.x,gy0.x,gz0.x), g100=vec3(gx0.y,gy0.y,gz0.y);
           vec3 g010=vec3(gx0.z,gy0.z,gz0.z), g110=vec3(gx0.w,gy0.w,gz0.w);
           vec3 g001=vec3(gx1.x,gy1.x,gx1.x), g101=vec3(gx1.y,gy1.y,gx1.y);
-          vec3 g011=vec3(gx1.z,gy1.z,gx1.z), g111=vec3(gx1.w,gy1.w,gx1.w);
+          vec3 g011=vec3(gx1.z,gy1.z,gx1.x), g111=vec3(gx1.w,gy1.w,gx1.x);
           vec4 norm0=taylorInvSqrt(vec4(dot(g000,g000),dot(g010,g010),dot(g100,g100),dot(g110,g110)));
           g000*=norm0.x; g010*=norm0.y; g100*=norm0.z; g110*=norm0.w;
           vec4 norm1=taylorInvSqrt(vec4(dot(g001,g001),dot(g011,g011),dot(g101,g101),dot(g111,g111)));
@@ -323,30 +422,32 @@ export default function Hero() {
 
       const sketch = (p) => {
         let webGLCanvas, bgGraphics, theShader, host;
+
         p.setup = () => {
           host = p.createCanvas(1, 1);
           if (p5HostRef.current) p5HostRef.current.appendChild(host.elt);
 
+          const TEX_N = 1024;
           webGLCanvas = p.createGraphics(TEX_N, TEX_N, p.WEBGL);
           bgGraphics = p.createGraphics(TEX_N, TEX_N);
           webGLCanvas.pixelDensity(1);
           bgGraphics.pixelDensity(1);
-
           webGLCanvas.canvas.style.display = "none";
           theShader = webGLCanvas.createShader(vert, frag);
           p.frameRate(30);
-          mySize = TEX_N;
 
           window.__p5CanvasForThree = webGLCanvas.elt;
+
           window.__p5UpdateHook = () => {
-            webGLCanvas.shader(theShader);
-            theShader.setUniform("u_resolution", [TEX_N, TEX_N]);
-            theShader.setUniform("u_time", p.millis() / 1000);
-            theShader.setUniform("u_tex", bgGraphics);
+            theShader && webGLCanvas.shader(theShader);
+            theShader && theShader.setUniform("u_resolution", [TEX_N, TEX_N]);
+            theShader && theShader.setUniform("u_time", p.millis() / 1000);
+            theShader && theShader.setUniform("u_tex", bgGraphics);
             webGLCanvas.clear();
             webGLCanvas.noStroke();
             webGLCanvas.rect(-TEX_N / 2, -TEX_N / 2, TEX_N, TEX_N);
 
+            // painter
             if (paintCount < PAINT_FRAMES) {
               for (let i = particles.length - 1; i >= 0; i--) {
                 particles[i].update();
@@ -367,24 +468,18 @@ export default function Hero() {
               paintCount++;
             }
           };
-          window.__p5ResetPaint = () => {
+
+          // Hard restart hook
+          window.__p5HardRestart = () => {
             paintCount = 0;
             initParticles();
             bgGraphics.clear();
-            bgGraphics.background(colorbg);
+            bgGraphics.background("#FFFFFF");
             window.__p5NeedsRebind = true;
           };
 
-          webGLCanvas.elt.addEventListener("webglcontextlost", (e) => {
-            e.preventDefault();
-            window.__p5NeedsRebind = true;
-          });
-          webGLCanvas.elt.addEventListener("webglcontextrestored", () => {
-            window.__p5NeedsRebind = true;
-          });
-
           initParticles();
-          bgGraphics.background(colorbg);
+          bgGraphics.background("#FFFFFF");
         };
 
         const initParticles = () => {
@@ -392,13 +487,14 @@ export default function Hero() {
           particles_2.length = 0;
           parNum =
             Math.floor(p.random(2, 4)) * Math.floor(p.random(40, 80) / 2);
+          mySize = 1024;
           for (let i = 0; i < parNum; i++)
             particles.push(new Particle(p, randX(), randY()));
           for (let i = 0; i < Math.floor(parNum / 2); i++)
             particles_2.push(new Particle2(p, randX(), randY()));
         };
-        const randX = () => p.random(-TEX_N * 0.1, TEX_N * 1.1);
-        const randY = () => p.random(-TEX_N * 0.1, TEX_N * 1.1);
+        const randX = () => p.random(-mySize * 0.1, mySize * 1.1);
+        const randY = () => p.random(-mySize * 0.1, mySize * 1.1);
 
         function Particle(p, x, y) {
           this.pos = p.createVector(x, y);
@@ -421,10 +517,10 @@ export default function Hero() {
               this.r > 100
                 ? this.r - 100
                 : (mySize / parNum) * p.random(80, 40);
-            if (this.pos.x < -TEX_N * 0.1) this.pos.x = TEX_N * 1.1;
-            if (this.pos.x > TEX_N * 1.1) this.pos.x = -TEX_N * 0.1;
-            if (this.pos.y < -TEX_N * 0.1) this.pos.y = TEX_N * 1.1;
-            if (this.pos.y > TEX_N * 1.1) this.pos.y = -TEX_N * 0.1;
+            if (this.pos.x < -mySize * 0.1) this.pos.x = mySize * 1.1;
+            if (this.pos.x > mySize * 1.1) this.pos.x = -mySize * 0.1;
+            if (this.pos.y < -mySize * 0.1) this.pos.y = mySize * 1.1;
+            if (this.pos.y > mySize * 1.1) this.pos.y = -mySize * 0.1;
           };
           this.show = (g) => {
             g.stroke(255, 210, 74, 32);
@@ -479,10 +575,10 @@ export default function Hero() {
               this.r > 100
                 ? this.r - 100
                 : (mySize / parNum) * p.random(80, 40);
-            if (this.pos.x < -TEX_N * 0.1) this.pos.x = TEX_N * 1.1;
-            if (this.pos.x > TEX_N * 1.1) this.pos.x = -TEX_N * 0.1;
-            if (this.pos.y < -TEX_N * 0.1) this.pos.y = TEX_N * 1.1;
-            if (this.pos.y > TEX_N * 1.1) this.pos.y = -TEX_N * 0.1;
+            if (this.pos.x < -mySize * 0.1) this.pos.x = mySize * 1.1;
+            if (this.pos.x > mySize * 1.1) this.pos.x = -mySize * 0.1;
+            if (this.pos.y < -mySize * 0.1) this.pos.y = mySize * 1.1;
+            if (this.pos.y > mySize * 1.1) this.pos.y = -mySize * 0.1;
           };
           this.show = (g) => {
             g.stroke(255, 210, 74, 28);
@@ -537,15 +633,17 @@ export default function Hero() {
         } catch {}
         delete window.__p5CanvasForThree;
         delete window.__p5UpdateHook;
-        delete window.__p5ResetPaint;
+        delete window.__p5HardRestart;
         delete window.__p5NeedsRebind;
       };
     }
 
-    /* ---------------------------------- THREE BOOT ---------------------------------- */
+    /* ---------------------------------- THREE boot --------------------------------- */
     async function bootThree() {
       const mount = threeRef.current;
       if (!mount) return () => {};
+
+      const dragging = { on: false, sx: 0, sShift: 0 };
 
       renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
@@ -559,6 +657,7 @@ export default function Hero() {
       camera.position.set(0, 20, 60);
       camera.lookAt(0, 20, 0);
 
+      // seam curves
       xCurveBase = [
         new THREE.Vector3(-120, -8, 0),
         new THREE.Vector3(-25, 4, 0),
@@ -577,7 +676,8 @@ export default function Hero() {
 
       const p5Canvas = await waitForP5Canvas();
       tex = new THREE.CanvasTexture(p5Canvas);
-      tex.wrapS = tex.wrapT = THREE.MirroredRepeatWrapping;
+      tex.wrapS = THREE.MirroredRepeatWrapping;
+      tex.wrapT = THREE.MirroredRepeatWrapping;
       tex.generateMipmaps = true;
       tex.minFilter = THREE.LinearMipmapLinearFilter;
       tex.magFilter = THREE.LinearFilter;
@@ -606,25 +706,7 @@ export default function Hero() {
         camera.updateProjectionMatrix();
         renderer.setSize(w, h);
       };
-      const onKey = (e) => {
-        const k = e.key;
-        if (k === "ArrowLeft" || k === "ArrowRight" || k === "[" || k === "]")
-          e.preventDefault();
-        if (k === "[")
-          wave.scrollSpeed = Math.max(0.005, wave.scrollSpeed * 0.6);
-        if (k === "]") wave.scrollSpeed = Math.min(0.6, wave.scrollSpeed * 1.5);
-        if (k === "r" || k === "R")
-          window.__p5ResetPaint && window.__p5ResetPaint();
-        const step = 6.0;
-        if (k === "ArrowLeft") {
-          curveShift -= step;
-          applyCurveShift();
-        }
-        if (k === "ArrowRight") {
-          curveShift += step;
-          applyCurveShift();
-        }
-      };
+
       const applyCurveShift = () => {
         xCurve.forEach((v, i) => {
           v.copy(xCurveBase[i]);
@@ -635,12 +717,41 @@ export default function Hero() {
         seamVeil.position.x = seamX();
       };
 
-      // Observe the HERO only (so texture sizing follows hero size)
+      // Drag-to-nudge seam
+      const onPointerDown = (e) => {
+        dragging.on = true;
+        dragging.sx = "touches" in e ? e.touches[0].clientX : e.clientX;
+        dragging.sShift = curveShift;
+      };
+      const onPointerMove = (e) => {
+        if (!dragging.on) return;
+        const x = "touches" in e ? e.touches[0].clientX : e.clientX;
+        const dx = x - dragging.sx;
+        curveShift = dragging.sShift + dx * 0.08;
+        applyCurveShift();
+      };
+      const onPointerUp = () => {
+        dragging.on = false;
+      };
+
       if (heroRef.current) {
         ro = new ResizeObserver(() => onResize());
         ro.observe(heroRef.current);
       }
-      window.addEventListener("keydown", onKey, { passive: false });
+      heroRef.current.addEventListener("mousedown", onPointerDown, {
+        passive: true,
+      });
+      heroRef.current.addEventListener("mousemove", onPointerMove, {
+        passive: true,
+      });
+      window.addEventListener("mouseup", onPointerUp, { passive: true });
+      heroRef.current.addEventListener("touchstart", onPointerDown, {
+        passive: true,
+      });
+      heroRef.current.addEventListener("touchmove", onPointerMove, {
+        passive: true,
+      });
+      window.addEventListener("touchend", onPointerUp, { passive: true });
 
       const animate = () => {
         if (!alive) return;
@@ -656,94 +767,203 @@ export default function Hero() {
 
         wave.update(dt);
         const or = wave.material.uniforms.offsetRepeat.value;
-        or.x = Math.sin(performance.now() * 0.0007) * 0.002;
+        or.x = Math.sin(performance.now() * 0.0007) * 0.0021;
         seamVeil.position.x = seamX();
 
+        // Layout labels
         const finalYs = targetScreenYs();
-        const minGap = 24;
-        const h = getH();
-        const topY = 6;
-        const screenTargets = [];
+        const topStart = -40;
+
+        const it = intro.active
+          ? clamp((performance.now() - intro.started) / intro.duration)
+          : 1;
+        const introE = easeOutCubic(it);
+        if (intro.active && it >= 1) intro.active = false;
+
         LABELS.forEach((L, i) => {
-          const goalY = finalYs[i];
-          const uGoal = findUForScreenY(goalY, !!L.forceBottom);
+          let goalY = Math.round(topStart + (finalYs[i] - topStart) * introE);
+
+          // ABOUT falling overrides Y
+          if (L.key === "about" && aboutFall.active) {
+            aboutFall.vy += aboutFall.ay * dt;
+            aboutFall.y = Math.min(
+              aboutFall.y + aboutFall.vy,
+              aboutFall.bottomY
+            );
+            goalY = aboutFall.y;
+          }
+          // ABOUT restoring to slot
+          if (L.key === "about" && aboutFall.restoring) {
+            const rT = clamp(
+              (performance.now() - aboutFall.restoreStart) /
+                aboutFall.restoreDur
+            );
+            const rE = easeInOutCubic(rT);
+            goalY = Math.round(aboutFall.y * (1 - rE) + finalYs[i] * rE);
+            if (rT >= 1) aboutFall.restoring = false;
+          }
+
+          const uGoal = findUForScreenY(goalY);
           const maxStep = 0.035 * dt;
           const diff = uGoal - L.t;
-          const step = THREE.MathUtils.clamp(diff, -maxStep, maxStep);
-          L.t += step;
+          L.t += THREE.MathUtils.clamp(diff, -maxStep, maxStep);
+
           const pos = seamPoint(THREE.MathUtils.clamp(L.t, -0.02, 1.02));
           const scr = worldToScreen(pos);
-          let yTarget = Math.min(scr.y, goalY);
-          if (i > 0) {
-            const prev = screenTargets[i - 1];
-            if (yTarget - prev.y < minGap) yTarget = prev.y + minGap;
-          }
-          yTarget = Math.max(topY, Math.min(h - 6, yTarget));
-          const uForPushed = findUForScreenY(yTarget, !!L.forceBottom);
-          if (uForPushed > L.t) L.t = uForPushed;
-          const pos2 = seamPoint(THREE.MathUtils.clamp(L.t, -0.02, 1.02));
-          const scr2 = worldToScreen(pos2);
-          screenTargets.push({ x: scr2.x, y: yTarget, z: pos2.z, uGoal });
-          if (Math.abs(uGoal - L.t) < 0.0015) {
-            L.t = uGoal;
-            L.settling = false;
-          }
-        });
-        LABELS.forEach((L, i) => {
-          const target = screenTargets[i];
           const el = labelRefs[L.key].current;
-          if (!el) return;
-          el.style.left = `${target.x}px`;
-          el.style.top = `${target.y}px`;
-          const s = THREE.MathUtils.clamp(1.2 - target.z / 120, 0.85, 1.15);
-          el.style.transform = `translate(-50%, -50%) scale(${s.toFixed(3)})`;
+          if (el) {
+            el.style.left = `${scr.x}px`;
+            el.style.top = `${goalY}px`;
+            const s = THREE.MathUtils.clamp(1.2 - pos.z / 120, 0.85, 1.15);
+            el.style.transform = `translate(-50%, -50%) scale(${s.toFixed(3)})`;
+          }
         });
+
+        // Layout SOCIAL chips riding the same seam
+        if (social.active) {
+          const now = performance.now();
+          social.items.forEach((it) => {
+            if (!it.ref) return;
+            // stagger
+            if (now < social.started + it.delay) return;
+
+            // advance along seam
+            const maxU = 0.985;
+            it.u = Math.min(maxU, it.u + it.speed * dt);
+
+            const pos = seamPoint(it.u);
+            const scr = worldToScreen(pos);
+            it.ref.style.left = `${scr.x}px`;
+            it.ref.style.top = `${scr.y}px`;
+            const s = THREE.MathUtils.clamp(1.18 - pos.z / 120, 0.82, 1.18);
+            it.ref.style.transform = `translate(-50%,-50%) scale(${s.toFixed(
+              3
+            )})`;
+            it.ref.style.opacity = "1";
+            it.ref.style.pointerEvents = "auto";
+          });
+        }
 
         renderer.render(scene, camera);
       };
       animate();
 
-      // cleanup THREE
       return () => {
         cancelAnimationFrame(rafId);
         try {
           ro && ro.disconnect();
         } catch {}
-        window.removeEventListener("keydown", onKey);
         try {
           renderer?.dispose();
           if (renderer?.domElement?.parentElement) {
             renderer.domElement.parentElement.removeChild(renderer.domElement);
           }
         } catch {}
-        scene?.traverse((obj) => {
-          if (obj.material) {
-            if (Array.isArray(obj.material))
-              obj.material.forEach((m) => m.dispose());
-            else obj.material.dispose();
-          }
-          if (obj.geometry) obj.geometry.dispose();
+        scene?.traverse((o) => {
+          if (o.material)
+            (Array.isArray(o.material) ? o.material : [o.material]).forEach(
+              (m) => m.dispose()
+            );
+          if (o.geometry) o.geometry.dispose();
         });
       };
     }
 
-    /* ------------------------------ BOOT SEQUENCE ------------------------------ */
     (async () => {
       try {
         await ensureP5();
         if (!alive) return;
-        cleanupP5 = await bootP5();
+        const p5Cleanup = await bootP5();
         if (!alive) {
-          cleanupP5 && cleanupP5();
+          p5Cleanup && p5Cleanup();
           return;
         }
+        cleanupP5 = p5Cleanup;
         cleanupThree = await bootThree();
       } catch (e) {
         console.error(e);
       }
     })();
 
-    /* ------------------------------------- CLEANUP ----------------------------------- */
+    // ABOUT drop — start from the DOM position (exact current center on screen)
+    const startAboutFall = () => {
+      if (aboutFall.active) return;
+      intro.active = false; // freeze intro so it doesn’t yank upward
+
+      const el = labelRefs.about.current;
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        aboutFall.y = Math.round(rect.top + rect.height / 2); // viewport Y
+      } else {
+        // fallback: use current curve mapping if DOM missing
+        const L = LABELS.find((l) => l.key === "about");
+        const pos = seamPoint(L.t);
+        aboutFall.y = Math.round(worldToScreen(pos).y);
+      }
+
+      aboutFall.vy = 0;
+      aboutFall.bottomY = getH() * 0.9;
+      aboutFall.active = true;
+
+      const tickToBottom = () => {
+        if (!aboutFall.active) return;
+        if (Math.abs(aboutFall.y - aboutFall.bottomY) < 0.5) {
+          aboutFall.active = false;
+          const target = document.getElementById("about");
+          if (target)
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+          setTimeout(() => {
+            aboutFall.restoring = true;
+            aboutFall.restoreStart = performance.now();
+          }, 220);
+        } else {
+          requestAnimationFrame(tickToBottom);
+        }
+      };
+      requestAnimationFrame(tickToBottom);
+    };
+    heroRef.current && (heroRef.current._startAboutFall = startAboutFall);
+
+    // Start SOCIAL chips run (spawn at top, slide down seam)
+    const startSocialChips = () => {
+      social.items.forEach((it) => {
+        it.u = -0.04; // above the visible seam start
+        if (it.ref) {
+          it.ref.style.opacity = "0";
+          it.ref.style.pointerEvents = "none";
+        }
+      });
+      social.active = true;
+      social.started = performance.now();
+    };
+    heroRef.current && (heroRef.current._startSocialChips = startSocialChips);
+
+    // Restart intro + painter
+    const restartAll = () => {
+      intro.active = true;
+      intro.started = performance.now();
+      if (typeof window.__p5HardRestart === "function")
+        window.__p5HardRestart();
+      else window.__p5NeedsRebind = true;
+    };
+    heroRef.current && (heroRef.current._restartAll = restartAll);
+
+    // Flip ↻/↑ based on About visibility
+    const aboutEl = document.getElementById("about");
+    let io;
+    if (aboutEl) {
+      io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries)
+            setBtnMode(
+              e.isIntersecting && e.intersectionRatio > 0.25 ? "up" : "restart"
+            );
+        },
+        { threshold: [0, 0.25, 0.5, 0.75, 1] }
+      );
+      io.observe(aboutEl);
+    }
+
     return () => {
       alive = false;
       try {
@@ -752,49 +972,125 @@ export default function Hero() {
       try {
         typeof cleanupP5 === "function" && cleanupP5();
       } catch {}
+      if (io) io.disconnect();
     };
   }, []);
 
-  const onLabelClick = (key, e) => {
-    if (key === "about") {
-      e.preventDefault();
-      const target = document.getElementById("about");
-      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  function triggerAboutDropWhenVisible() {
+    const target = document.getElementById("about");
+    if (!target) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        const e = entries[0];
+        if (e.isIntersecting && e.intersectionRatio > 0.4) {
+          window.dispatchEvent(new Event("about:drop"));
+          io.disconnect();
+        }
+      },
+      { threshold: [0, 0.25, 0.4, 0.6, 0.75] }
+    );
+    io.observe(target);
+  }
+
+  // Click handlers
+  const onAboutClick = (e) => {
+    e.preventDefault();
+    const el = heroRef.current;
+    el && el._startAboutFall && el._startAboutFall();
+    triggerAboutDropWhenVisible();
+  };
+  // replace your onWorkClick with this:
+  const onWorkClick = (e) => {
+    e.preventDefault();
+    const base = import.meta.env.BASE_URL || "/";
+    // goes to https://<user>.github.io/fall2025portfolio/work
+    window.location.assign(`${base}work`);
+  };
+
+  const onContactClick = (e) => {
+    e.preventDefault();
+    window.location.href = "mailto:hollandblumer6@icloud.com";
+  };
+  const onSocialClick = (e) => {
+    e.preventDefault();
+    const el = heroRef.current;
+    el && el._startSocialChips && el._startSocialChips();
+  };
+
+  const onRestartOrUp = () => {
+    if (btnMode === "up") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      setTimeout(() => {
+        const el = heroRef.current;
+        el && el._restartAll && el._restartAll();
+      }, 150);
+    } else {
+      const el = heroRef.current;
+      el && el._restartAll && el._restartAll();
     }
   };
 
   return (
     <>
-      {/* Global smooth scrolling for the “slides down” feel */}
       <style>{`html{scroll-behavior:smooth}`}</style>
 
-      {/* HERO (texture lives ONLY here) */}
-      <section ref={heroRef} style={styles.hero}>
+      <section ref={heroRef} style={styles.hero} aria-label="Hero seam">
         <style>{`
-          .hero-canvas{ position:absolute; inset:0; }
-          .seam-label{
-            position:absolute; left:0; top:0; transform:translate(-50%,-50%);
-            z-index:20; color:#403326; font-weight:800; letter-spacing:.01em;
-            text-decoration:none; user-select:none; cursor:pointer; will-change:transform,left,top;
+          .hero-canvas{ position:absolute; inset:0; z-index:0; }
+
+          /* Labels stay on top of the cover */
+          .navtext{
+            position:absolute; left:0; top:0; transform:translate(-50%, -50%);
+            z-index:50; width:max(120px, 12vw); pointer-events:auto;
+            user-select:none; cursor:pointer; will-change:transform,left,top;
           }
-          .seam-label:active{ transform:translate(-50%,-50%) scale(.98); }
+          .navtext button {
+            position:absolute; inset:0; border:0; background:transparent; padding:0; cursor:pointer;
+          }
+
+          /* Social chips — ride the same seam; default hidden until run */
+          .socialchip{
+            position:absolute; left:0; top:0; transform:translate(-50%,-50%);
+            z-index:55; width:44px; height:44px; border-radius:999px;
+            display:grid; place-items:center; font-weight:800; letter-spacing:.02em;
+            box-shadow: 0 4px 10px rgba(0,0,0,.15);
+            transition:opacity .25s ease;
+            user-select:none;
+          }
+          .socialchip a{ position:absolute; inset:0; border-radius:999px; }
+          .socialchip span{ pointer-events:none; font-size:14px; color:#fff; }
+
+          /* Full-screen cover menu (under labels, above texture & restart) */
+          .cover {
+            position:fixed; inset:0; z-index:30;
+            background:rgba(246,241,231,0.86);
+            backdrop-filter: blur(6px);
+            transform:translateX(100%);
+            transition:transform .42s cubic-bezier(.22,.61,.36,1);
+          }
+          .cover.open { transform:translateX(0); }
+          .cover-inner{
+            position:absolute; right:0; top:0; bottom:0; width:min(520px, 92vw);
+            padding:20px 22px; color:#403326; overflow:auto;
+          }
           .menu-btn{
-            position:fixed; right:16px; top:16px; z-index:15; background:#403326; color:#e9f259;
+            position:fixed; right:16px; top:16px; z-index:60; background:#403326; color:#e9f259;
             border:none; border-radius:999px; padding:.6rem .9rem; font-weight:700; letter-spacing:.02em; cursor:pointer;
           }
-          .slide-panel{
-            position:fixed; top:16px; right:16px; width:min(380px, 70vw); height:56vh; background:#f6f1e7;
-            box-shadow:0 10px 30px rgba(0,0,0,.18); border-radius:16px;
-            transform:translateY(-16px) translateX(${
-              menuOpen ? "0" : "calc(100% + 16px)"
-            });
-            transition:transform .38s cubic-bezier(.22,.61,.36,1); z-index:16; overflow:hidden; display:flex; flex-direction:column;
+
+          /* bottom-left control (↻ or ↑) — will be covered by .cover */
+          .restart-pad{
+            position:fixed; left:12px; bottom:12px; z-index:20;
           }
-          .panel-head{ padding:14px 16px; font-weight:800; color:#403326; border-bottom:1px solid rgba(0,0,0,.08); }
-          .panel-body{ padding:14px 16px; color:#403326; font-size:14px; line-height:1.5; opacity:.9; }
+          .restart-pad button{
+            width:56px; height:56px; border-radius:14px; border:0; background:#403326; color:#e9f259;
+            font-weight:900; font-size:22px; cursor:pointer; opacity:.95;
+          }
+          .restart-pad button:active{ transform:translateY(1px); }
         `}</style>
 
-        {/* hidden p5 host */}
+        {/* p5 offscreen host */}
         <div
           ref={p5HostRef}
           style={{
@@ -809,47 +1105,144 @@ export default function Hero() {
         {/* THREE mount */}
         <div ref={threeRef} className="hero-canvas" />
 
-        {/* Seam labels (float over hero only) */}
-        <a ref={labelRefs.social} className="seam-label" href="#social">
-          Social
-        </a>
-        <a ref={labelRefs.contact} className="seam-label" href="#contact">
-          Contact
-        </a>
-        <a ref={labelRefs.work} className="seam-label" href="#work">
-          Work
-        </a>
-        <a
-          ref={labelRefs.about}
-          className="seam-label"
-          href="#about"
-          onClick={(e) => onLabelClick("about", e)}
+        {/* Labels (always above the cover) */}
+        <div ref={labelRefs.about} className="navtext" onClick={onAboutClick}>
+          <HeroNav
+            text="ABOUT"
+            letterSpacing={10}
+            baselinePx={60}
+            fitToCssFont
+            tightPadPx={30}
+            topColor="#403326"
+            botColor="#403326"
+          />
+          <button aria-label="About" />
+        </div>
+        <div ref={labelRefs.work} className="navtext" onClick={onWorkClick}>
+          <HeroNav
+            text="WORK"
+            letterSpacing={10}
+            baselinePx={60}
+            fitToCssFont
+            tightPadPx={30}
+            topColor="#403326"
+            botColor="#403326"
+          />
+          <button aria-label="Work" />
+        </div>
+        <div
+          ref={labelRefs.contact}
+          className="navtext"
+          onClick={onContactClick}
         >
-          About
-        </a>
+          <HeroNav
+            text="CONTACT"
+            letterSpacing={10}
+            baselinePx={60}
+            fitToCssFont
+            tightPadPx={30}
+            topColor="#403326"
+            botColor="#403326"
+          />
+          <button aria-label="Contact" />
+        </div>
+        <div ref={labelRefs.social} className="navtext" onClick={onSocialClick}>
+          <HeroNav
+            text="SOCIAL"
+            letterSpacing={10}
+            baselinePx={60}
+            fitToCssFont
+            tightPadPx={30}
+            topColor="#403326"
+            botColor="#403326"
+          />
+          <button aria-label="Social" />
+        </div>
 
-        {/* Menu button + panel */}
-        <button className="menu-btn" onClick={() => setMenuOpen((v) => !v)}>
-          {menuOpen ? "Close" : "Menu"}
+        {/* Sliding SOCIAL chips (spawn at top and ride the seam) */}
+        <div
+          ref={socialRefs.linkedin}
+          className="socialchip"
+          style={{ background: "#0A66C2" }}
+          title="LinkedIn"
+        >
+          <a
+            href="https://www.linkedin.com/in/hollandblumer/"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="LinkedIn"
+          />
+          <span>in</span>
+        </div>
+        <div
+          ref={socialRefs.instagram}
+          className="socialchip"
+          style={{ background: "#E1306C" }}
+          title="Instagram"
+        >
+          <a
+            href="https://www.instagram.com/"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Instagram"
+          />
+          <span>IG</span>
+        </div>
+        <div
+          ref={socialRefs.github}
+          className="socialchip"
+          style={{ background: "#171515" }}
+          title="GitHub"
+        >
+          <a
+            href="https://github.com/hollandblumer"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="GitHub"
+          />
+          <span>GH</span>
+        </div>
+        <div
+          ref={socialRefs.codepen}
+          className="socialchip"
+          style={{ background: "#111111" }}
+          title="CodePen"
+        >
+          <a
+            href="https://codepen.io/"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="CodePen"
+          />
+          <span>CP</span>
+        </div>
+
+        {/* Menu toggle (stays above labels so you can always close) */}
+        <button className="menu-btn" onClick={() => setCoverOpen((v) => !v)}>
+          {coverOpen ? "Close" : "Menu"}
         </button>
-        <div className="slide-panel" aria-hidden={!menuOpen}>
-          <div className="panel-head">Menu</div>
-          <div className="panel-body">
-            <p>
-              <strong>Hint:</strong> [ and ] adjust wave speed. R reseeds the
-              texture. ← → nudges the seam.
-            </p>
-            <p>This panel sits under the labels, above the THREE canvas.</p>
-          </div>
+
+        {/* Full-screen sliding cover (under labels, over texture & restart) */}
+        <div
+          className={`cover ${coverOpen ? "open" : ""}`}
+          aria-hidden={!coverOpen}
+          onClick={() => setCoverOpen(false)}
+        ></div>
+
+        {/* bottom-left control */}
+        <div className="restart-pad" aria-label="Restart or Up">
+          <button
+            onClick={onRestartOrUp}
+            title={btnMode === "up" ? "Back to top" : "Restart"}
+          >
+            {btnMode === "up" ? "↑" : "↻"}
+          </button>
         </div>
       </section>
 
-      {/* ABOUT (separate sibling: NO texture) */}
+      {/* About lives OUTSIDE hero (no texture) */}
       <section id="about" style={styles.about}>
-        <div>
-          <h1 style={styles.h1}>About</h1>
-          <p style={styles.p}>Replace with your content.</p>
-        </div>
+        <About />
       </section>
     </>
   );
@@ -860,9 +1253,11 @@ const styles = {
     position: "relative",
     width: "100vw",
     height: "100svh",
-    background: "#e9f259", // Hermès-y bg behind the textured wave
+    background: "#e9f259",
     fontFamily: "Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial",
     overflow: "hidden",
+    touchAction: "none",
+    outline: "none",
   },
   about: {
     position: "relative",
@@ -870,9 +1265,7 @@ const styles = {
     minHeight: "100svh",
     display: "grid",
     placeItems: "center",
-    background: "#f6f1e7",
+    background: "transparent",
     color: "#222",
   },
-  h1: { margin: 0, fontSize: "clamp(28px,6vw,74px)" },
-  p: { margin: "8px 0 0", opacity: 0.7 },
 };

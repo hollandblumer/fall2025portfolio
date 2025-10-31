@@ -1,0 +1,6 @@
+/* Uniformly enlarge the final rendered result — proportions stay exact */
+.hero-nav-scale {
+  transform: scale(2); /* ← tweak this */
+  transform-origin: center center; /* key to keep it truly centered */
+  will-change: transform;
+}

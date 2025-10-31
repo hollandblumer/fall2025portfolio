@@ -1,236 +1,334 @@
-import React, { useEffect, useRef } from "react";
+// src/components/LoadingSubTitle.jsx
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import p5 from "p5";
 
-/**
- * LoadingSubTitle — vertical-diamond subtitle (width-responsive)
- *
- * Props
- * - text: string (default: "is a creative technologist")
- * - useGradient: boolean (default: true)
- * - fillTop: string (default: "#D6B089")
- * - fillBot: string (default: "#B88E68")
- * - fillSolid: string (default: "#B88E68")
- * - fontFamily: string (default: "Helvetica, Arial, sans-serif")
- * - fitMargin: number 0..1 (default: 0.92)
- * - startFsFrac: number (default: 0.26)
- * - maxCanvasScale: number (default: 1)
- * - settings: optional overrides for lattice & edge feel:
- *    {
- *      rowH, colW, subRows, diamondH, maxW, stagger,
- *      edgeThresh, fadeEdge
- *    }
- * - className: wrapper div className
- * - style: inline style for wrapper
- */
+/** LoadingSubTitle — diamond text with optional per-chunk plain overlays */
 export default function LoadingSubTitle({
   text = "is a creative technologist",
-  useGradient = true,
-  fillTop = "#D6B089",
-  fillBot = "#B88E68",
-  fillSolid = "#B88E68",
+  // Example use:
+  // mix={[
+  //   { text: "is a",               style: "diamond" },
+  //   { text: "creative developer", style: "plain"   },
+  //   { text: "based in",           style: "diamond" },
+  //   { text: "Brooklyn, NY",       style: "plain"   },
+  // ]}
+  mix = null,
+
+  // diamond-only knobs
+  letterSpacing = 0,
+  rowH = 3,
+  colW = 12,
+  subRows = 3,
+  diamondH = 2,
+  maxW = 18,
+
+  // diamond-only colors/edges
+  topColor = "#0c0c0cff",
+  botColor = "#070707ff",
+  bgClear = true,
+  fadeEdge = 0.15,
+  edgeThresh = 0.05,
+  stagger = true,
+
+  // layout
   fontFamily = "Helvetica, Arial, sans-serif",
-  fitMargin = 0.92,
-  startFsFrac = 0.26,
-  maxCanvasScale = 1,
-  settings = {},
-  className,
-  style,
+  centerAlign = true,
+  lineGapFrac = 0.22,
+
+  // sizing
+  fitToCssFont = true,
+  fontSizeRatio = 0.26,
+
+  // scaling baseline
+  baselinePx = 60,
+  tightPadPx = 0,
+
+  className = "",
+  style = {},
 }) {
   const hostRef = useRef(null);
   const p5Ref = useRef(null);
+  const roRef = useRef(null);
+
+  // overlay positions for plain chunks
+  const [plainSpans, setPlainSpans] = useState([]); // [{text,x,y,ts}]
+
+  // make mix stable for the effect deps
+  const mixKey = useMemo(() => JSON.stringify(mix || []), [mix]);
 
   useEffect(() => {
-    if (!hostRef.current) return;
+    const host = hostRef.current;
+    if (!host) return;
 
-    const sketch = (s) => {
-      /* ===================== Your original knobs (defaults) ===================== */
-      // layout of the diamond lattice
-      const ROW_H = settings.rowH ?? 2; // vertical spacing between bands
-      const COL_W = settings.colW ?? 9; // horizontal spacing between diamonds
-      const SUB_ROWS = settings.subRows ?? 3; // 2–4 looks good
-      const DIAMOND_H = settings.diamondH ?? 1.2; // diamond height
-      const MAX_W = settings.maxW ?? 8; // max diamond width inside the glyph
-      const STAGGER = settings.stagger ?? true; // offset every other row
+    let w = 2,
+      h = 2;
+    let pg;
+    let FG_TOP, FG_BOT;
+    let resizingGuard = 0;
 
-      // edge feel
-      const EDGE_THRESH = settings.edgeThresh ?? 0.06; // alpha threshold
-      const FADE_EDGE = settings.fadeEdge ?? 0.15; // softens outer rim
+    // choose chunks
+    const chunks =
+      Array.isArray(mix) && mix.length
+        ? mix.map((c) => ({
+            text: String(c.text || ""),
+            style: c.style === "plain" ? "plain" : "diamond",
+          }))
+        : [{ text: String(text), style: "diamond" }];
 
-      // text sizing / fitting
-      const MAX_CANVAS_SCALE = maxCanvasScale; // 1.0 = full container size
-      const FONT_FAMILY = fontFamily;
-      const START_FS_FRAC = startFsFrac; // starting guess: height * this
-      const FIT_MARGIN = fitMargin; // fit to 92% of width
+    const sketch = (p) => {
+      function readBoxAndFont() {
+        const r = host.getBoundingClientRect();
+        w = Math.max(2, Math.floor(r.width));
+        const cs = getComputedStyle(host);
+        const cssFontPx = parseFloat(cs.fontSize) || 16;
+        return cssFontPx;
+      }
 
-      // color
-      const USE_GRADIENT = useGradient;
-      const FILL_TOP = fillTop;
-      const FILL_BOT = fillBot;
-      const FILL_SOLID = fillSolid;
-      /* ======================================================================= */
-
-      // Internal state
-      let pg, FG_TOP, FG_BOT;
-      let refTW = null; // reference text width at first layout
-      let kx = 1; // width-only scale factor (currentTW / refTW)
-
-      const getHostSize = () => {
-        const el = hostRef.current;
-        if (!el) return { w: window.innerWidth, h: window.innerHeight };
-        const r = el.getBoundingClientRect();
-        return { w: Math.max(1, r.width), h: Math.max(1, r.height) };
-      };
-
-      s.setup = () => {
-        const { w, h } = getHostSize();
-        s.pixelDensity(1);
-        s.createCanvas(
-          Math.round(w * MAX_CANVAS_SCALE),
-          Math.round(h * MAX_CANVAS_SCALE),
-          s.P2D
-        );
-
-        FG_TOP = s.color(FILL_TOP);
-        FG_BOT = s.color(FILL_BOT);
-
-        pg = s.createGraphics(s.width, s.height);
+      function ensurePg(width, height) {
+        p.pixelDensity(1);
+        p.resizeCanvas(width, height);
+        if (pg) pg.remove();
+        pg = p.createGraphics(width, height);
         pg.pixelDensity(1);
-        drawTextToBuffer(pg, text, true); // establish refTW
-        s.noStroke();
-      };
+      }
 
-      s.windowResized = () => {
-        const { w, h } = getHostSize();
-        s.resizeCanvas(
-          Math.round(w * MAX_CANVAS_SCALE),
-          Math.round(h * MAX_CANVAS_SCALE)
-        );
-        pg = s.createGraphics(s.width, s.height);
-        pg.pixelDensity(1);
-        drawTextToBuffer(pg, text, false); // recompute kx from current text width
-      };
+      let letterSpacingPx = letterSpacing;
 
-      function drawTextToBuffer(buf, str, setReference) {
-        buf.clear();
-        buf.textAlign(s.CENTER, s.CENTER);
-        buf.textFont(FONT_FAMILY);
+      function chunkWidth(c) {
+        let total = 0;
+        for (const ch of c.text) total += pg.textWidth(ch);
+        if (c.text.length > 1) total += letterSpacingPx * (c.text.length - 1);
+        return total;
+      }
 
-        // Fit to width (derive fs from container height first)
-        let fs = s.height * START_FS_FRAC;
-        buf.textSize(fs);
-        while (buf.textWidth(str) > s.width * FIT_MARGIN && fs > 4) {
-          fs *= 0.96;
-          buf.textSize(fs);
-        }
-
-        const y = s.height / 2 + fs * 0.12; // optical centering
-        buf.fill(255);
-        buf.text(str, s.width / 2, y);
-        buf.loadPixels();
-
-        const tw = buf.textWidth(str);
-        if (setReference || refTW === null) {
-          refTW = Math.max(1, tw);
-          kx = 1;
-        } else {
-          kx = s.constrain(tw / refTW, 0.5, 2.5);
+      function drawChunkText(str, y, x0) {
+        let x = x0;
+        for (const ch of str) {
+          pg.text(ch, x, y);
+          x += pg.textWidth(ch) + letterSpacingPx;
         }
       }
 
-      function sampleAlphaMax(g, x, y) {
+      function layoutAndMask(ts, tightPadScaled) {
+        pg.textFont(fontFamily);
+        pg.textSize(ts);
+
+        const spaceW = pg.textWidth(" ");
+        const interChunkGap = spaceW;
+
+        const widths = chunks.map((c) => chunkWidth(c));
+        let totalW = 0;
+        for (let i = 0; i < widths.length; i++) {
+          totalW += widths[i];
+          if (i < widths.length - 1) totalW += interChunkGap;
+        }
+
+        const desiredH = Math.max(2, Math.ceil(ts + 2 * tightPadScaled)); // single line
+        h = desiredH;
+        ensurePg(w, h);
+
+        const startX = centerAlign ? w / 2 - totalW / 2 : ts * 0.1;
+
+        // draw mask for diamond chunks; collect plain chunk rects
+        pg.clear();
+        pg.textAlign(p.LEFT, p.CENTER);
+        pg.textFont(fontFamily);
+        pg.textSize(ts);
+        pg.fill(255);
+
+        const newPlainSpans = [];
+        let xCursor = startX;
+        chunks.forEach((c, idx) => {
+          if (c.style === "diamond") {
+            drawChunkText(c.text, h / 2, xCursor);
+          } else {
+            newPlainSpans.push({ text: c.text, x: xCursor, y: h / 2, ts });
+          }
+          xCursor += widths[idx];
+          if (idx < widths.length - 1) xCursor += interChunkGap;
+        });
+
+        pg.loadPixels();
+        setPlainSpans(newPlainSpans);
+      }
+
+      function sampleAlphaMax(x, y) {
         let m = 0;
-        const W = g.width,
-          H = g.height;
         for (let oy = -1; oy <= 1; oy++) {
           for (let ox = -1; ox <= 1; ox++) {
-            const ix = s.constrain((x | 0) + ox, 0, W - 1);
-            const iy = s.constrain((y | 0) + oy, 0, H - 1);
-            const idx = (iy * W + ix) * 4 + 3;
-            m = Math.max(m, g.pixels[idx]);
+            const ix = p.constrain(Math.floor(x + ox), 0, w - 1);
+            const iy = p.constrain(Math.floor(y + oy), 0, h - 1);
+            const idx = (iy * w + ix) * 4 + 3;
+            m = Math.max(m, pg.pixels[idx] || 0);
           }
         }
-        return m; // 0..255
+        return m;
       }
 
-      function diamond(cx, cy, w, h) {
-        s.beginShape();
-        s.vertex(cx, cy - h / 2);
-        s.vertex(cx + w / 2, cy);
-        s.vertex(cx, cy + h / 2);
-        s.vertex(cx - w / 2, cy);
-        s.endShape(s.CLOSE);
+      function diamond(cx, cy, ww, hh) {
+        p.beginShape();
+        p.vertex(cx, cy - hh / 2);
+        p.vertex(cx + ww / 2, cy);
+        p.vertex(cx, cy + hh / 2);
+        p.vertex(cx - ww / 2, cy);
+        p.endShape(p.CLOSE);
       }
 
-      s.draw = () => {
-        s.clear(); // transparent
+      // scaled knobs
+      let S = 1;
+      let rowH_s = rowH,
+        colW_s = colW,
+        diamondH_s = diamondH,
+        maxW_s = maxW,
+        tightPad_s = tightPadPx;
 
-        // Only horizontal metrics scale with width changes
-        const COL_W_eff = COL_W * kx;
-        const MAX_W_eff = MAX_W * kx;
+      function updateScaledKnobs(cssFontPx) {
+        S = Math.max(0.001, cssFontPx / baselinePx);
+        rowH_s = rowH * S;
+        colW_s = colW * S;
+        diamondH_s = diamondH * S;
+        maxW_s = maxW * S;
+        letterSpacingPx = letterSpacing * S;
+        tightPad_s = tightPadPx * S;
+      }
 
-        for (let y = ROW_H * 0.5; y < s.height; y += ROW_H) {
-          const offset =
-            STAGGER && ((y / ROW_H) | 0) % 2 === 1 ? COL_W_eff * 0.5 : 0;
+      function allocInitial() {
+        const cssFontPx = readBoxAndFont();
+        updateScaledKnobs(cssFontPx);
 
-          for (let r = 0; r < SUB_ROWS; r++) {
-            const ry = y + (r - (SUB_ROWS - 1) / 2) * (DIAMOND_H * 0.7);
+        const tempH = fitToCssFont
+          ? Math.ceil(cssFontPx * 1.4)
+          : Math.max(2, Math.floor(host.getBoundingClientRect().height));
+        ensurePg(w, tempH);
 
-            if (USE_GRADIENT) {
-              const gy = s.constrain(ry / s.height, 0, 1);
-              s.fill(s.lerpColor(FG_TOP, FG_BOT, gy));
-            } else {
-              s.fill(FILL_SOLID);
-            }
+        const ts = fitToCssFont ? cssFontPx : tempH * fontSizeRatio;
+        layoutAndMask(ts, tightPad_s);
+      }
 
-            for (
-              let x = offset + COL_W_eff * 0.5;
-              x < s.width;
-              x += COL_W_eff
-            ) {
-              const a = sampleAlphaMax(pg, x, ry) / 255;
-              if (a < EDGE_THRESH) continue;
+      function maybeResizeToFit() {
+        if (!fitToCssFont) return;
+        const cssFontPx = readBoxAndFont();
+        updateScaledKnobs(cssFontPx);
+        layoutAndMask(cssFontPx, tightPad_s);
+      }
 
-              const aL = sampleAlphaMax(pg, x - COL_W_eff * 0.4, ry) / 255;
-              const aR = sampleAlphaMax(pg, x + COL_W_eff * 0.4, ry) / 255;
+      p.setup = () => {
+        p.createCanvas(2, 2).parent(host);
+        p.noStroke();
+        FG_TOP = p.color(topColor);
+        FG_BOT = p.color(botColor);
+        allocInitial();
+        setTimeout(maybeResizeToFit, 0);
+      };
+
+      p.draw = () => {
+        if (!pg) return;
+        if (bgClear) p.clear();
+        else p.background(0, 0);
+
+        for (let yy = rowH_s * 0.5; yy < h; yy += rowH_s) {
+          const xOff =
+            stagger && Math.floor(yy / rowH_s) % 2 === 1 ? colW_s * 0.5 : 0;
+
+          for (let r = 0; r < subRows; r++) {
+            const ry = yy + (r - (subRows - 1) / 2) * (diamondH_s * 0.7);
+            const gy = Math.min(Math.max(ry / h, 0), 1);
+            p.fill(p.lerpColor(FG_TOP, FG_BOT, gy));
+
+            for (let xx = xOff + colW_s * 0.5; xx < w; xx += colW_s) {
+              const a = sampleAlphaMax(xx, ry);
+              const t = a / 255;
+              if (t < edgeThresh) continue;
+
+              const aL = sampleAlphaMax(xx - colW_s * 0.4, ry);
+              const aR = sampleAlphaMax(xx + colW_s * 0.4, ry);
               const edgeFactor =
-                1.0 - (FADE_EDGE * (Math.abs(a - aL) + Math.abs(a - aR))) / 2;
+                1 -
+                (fadeEdge * (Math.abs(a - aL) + Math.abs(a - aR))) / (255 * 2);
 
-              const w = MAX_W_eff * a * Math.max(0, edgeFactor);
-              if (w > 0.35) {
-                diamond(x, ry, w, DIAMOND_H); // keep vertical feel unchanged
-              }
+              const ww = p.lerp(0, maxW_s, t) * Math.max(0, edgeFactor);
+              if (ww > 0.35) diamond(xx, ry, ww, diamondH_s);
             }
           }
         }
+      };
+
+      p.windowResized = () => {
+        const cssFontPx = readBoxAndFont();
+        updateScaledKnobs(cssFontPx);
+        ensurePg(w, Math.max(h, 2));
+        const ts = fitToCssFont ? cssFontPx : h * fontSizeRatio;
+        layoutAndMask(ts, tightPad_s);
       };
     };
 
-    p5Ref.current = new p5(sketch, hostRef.current);
+    p5Ref.current = new p5(sketch);
+
+    roRef.current = new ResizeObserver(() => {
+      if (p5Ref.current?.windowResized) p5Ref.current.windowResized();
+    });
+    roRef.current.observe(host);
 
     return () => {
-      if (p5Ref.current) {
-        p5Ref.current.remove();
-        p5Ref.current = null;
-      }
+      roRef.current?.disconnect();
+      p5Ref.current?.remove();
+      p5Ref.current = null;
     };
   }, [
     text,
-    useGradient,
-    fillTop,
-    fillBot,
-    fillSolid,
+    mixKey,
+    letterSpacing,
+    rowH,
+    colW,
+    subRows,
+    diamondH,
+    maxW,
+    topColor,
+    botColor,
+    bgClear,
+    fadeEdge,
+    edgeThresh,
+    stagger,
     fontFamily,
-    fitMargin,
-    startFsFrac,
-    maxCanvasScale,
-    settings,
+    centerAlign,
+    lineGapFrac,
+    fitToCssFont,
+    fontSizeRatio,
+    baselinePx,
+    tightPadPx,
   ]);
+
+  const aria =
+    Array.isArray(mix) && mix.length ? mix.map((c) => c.text).join(" ") : text;
 
   return (
     <div
-      className={className}
-      style={{ position: "relative", width: "100%", height: "100%", ...style }}
       ref={hostRef}
-    />
+      className={className}
+      style={{ position: "relative", width: "100%", lineHeight: 1, ...style }}
+      role="img"
+      aria-label={aria}
+    >
+      {/* overlay plain spans */}
+      {plainSpans.map((s, i) => (
+        <span
+          key={i}
+          style={{
+            position: "absolute",
+            left: `${s.x}px`,
+            top: `${s.y - s.ts * 0.65}px`, // align to p5 baseline
+            fontFamily,
+            // When fitToCssFont is true, we let CSS control font-size.
+            // Otherwise we lock to computed ts px:
+            fontSize: fitToCssFont ? undefined : `${s.ts}px`,
+            lineHeight: 1.2,
+            whiteSpace: "pre",
+            pointerEvents: "auto",
+          }}
+        >
+          {s.text}
+        </span>
+      ))}
+    </div>
   );
 }
