@@ -3,41 +3,58 @@ import React, { useEffect, useRef } from "react";
 
 /**
  * HeroNavText — canvas-based “dense diamond fill inside text mask”.
- * p5-free (so it won’t collide with your p5+THREE hero background).
+ * p5-free. Baseline-tuned math; scales from CSS font-size via baselinePx.
  *
- * To keep the exact 60px-baseline look, we DO NOT scale inside the math.
- * If you want it bigger, wrap the canvas and apply CSS transform: scale(...)
- * on the wrapper (see CSS snippet after the component).
+ * Fonts:
+ * - Defaults to Times New Roman + italic (override via props).
+ *
+ * Skew:
+ * - Parent controls skew via skewDir: "left" | "right" | "none" and skewDeg.
+ *
+ * Subtle static glitch:
+ * - Random (seeded) left/right nudges on a small fraction of diamonds.
+ *   Controls: glitchProb, glitchMaxShiftPx, glitchSeed.
  */
-export default function HeroNavText({
+export default function HeroNav({
   text = "ABOUT",
 
-  /** tuned-at-baseline knobs (baselinePx=60 is the design truth) */
+  /** tuned-at-baseline knobs (baselinePx=60 is the original design truth) */
   letterSpacing = 10, // px @ baselinePx
-  rowH = 3, // px @ baselinePx
+  rowH = 9, // px @ baselinePx
   colW = 12, // px @ baselinePx
-  subRows = 3, // integer
-  diamondH = 2, // px @ baselinePx
-  maxW = 18, // px @ baselinePx
+  subRows = 2, // integer
+  diamondH = 4.2, // px @ baselinePx
+  maxW = 52, // px @ baselinePx
 
   /** colors/edges */
   topColor = "#000000ff",
   botColor = "#403326",
   bgClear = true,
-  fadeEdge = 0.15,
+  fadeEdge = 0.75,
   edgeThresh = 0.05,
   stagger = true,
 
   /** text & layout */
-  fontFamily = "Helvetica, Arial, sans-serif",
+  fontFamily = "'Times New Roman', Times, serif",
+  fontStyle = "italic", // "italic" | "normal"
+  fontWeight = 400, // 400 | 600 | 700 ...
   centerAlign = true,
   lineGapFrac = 0.22,
 
-  /** sizing mode parity with NavText3 */
+  /** sizing mode */
   fitToCssFont = true, // if false, uses fontSizeRatio * host height
   fontSizeRatio = 0.26,
-  baselinePx = 40, // ← keep this at 60 to preserve look
-  tightPadPx = 30, // px @ baselinePx
+  baselinePx = 200, // keep 60 to preserve original 60px-tuned look
+  tightPadPx = 100, // px @ baselinePx
+
+  /** skew controls */
+  skewDir = "right", // "left" | "right" | "none"
+  skewDeg = 10, // degrees of skew
+
+  /** NEW: subtle static glitch controls */
+  glitchProb = 0.3, // 8% of diamonds nudged
+  glitchMaxShiftPx = 40, // px @ baseline (scaled with S)
+  glitchSeed = 1337, // seed for deterministic nudge pattern
 
   /** std React */
   className = "",
@@ -60,6 +77,7 @@ export default function HeroNavText({
 
     let resizeObs;
 
+    /* -------------------- utils -------------------- */
     function lerpColorHex(a, b, t) {
       const ah = +("0x" + a.replace("#", ""));
       const bh = +("0x" + b.replace("#", ""));
@@ -83,19 +101,38 @@ export default function HeroNavText({
       return { w, cssFontPx };
     }
 
-    // NO external scale here — keep math faithful to baseline=60.
+    // tiny seeded RNG (mulberry32-ish)
+    function rng(seed) {
+      let t = seed >>> 0;
+      return () => {
+        t += 0x6d2b79f5;
+        let x = t;
+        x = Math.imul(x ^ (x >>> 15), x | 1);
+        x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+        return ((x ^ (x >>> 14)) >>> 0) / 4294967296; // [0,1)
+      };
+    }
+    // stable hash from grid indices + seed
+    function hash3(i, j, k, seed) {
+      // mix three small ints + seed into a 32-bit
+      let h = (i * 374761393) ^ (j * 668265263) ^ (k * 2147483647) ^ (seed | 0);
+      h = (h ^ (h >>> 13)) * 1274126177;
+      h ^= h >>> 16;
+      return h >>> 0;
+    }
+
+    /* -------------------- layout -------------------- */
     function measureAndLayout(w, cssFontPxInput) {
-      // Scale factor vs baseline (this is NOT a visual scale; it’s the
-      // canonical mapping from “design at 60px” to current CSS font pixels)
       const S = Math.max(0.001, cssFontPxInput / baselinePx);
 
-      // All baseline-tuned knobs scale by S
+      // Scale baseline-tuned knobs by S
       const rowH_s = rowH * S;
       const colW_s = colW * S;
       const diamondH_s = diamondH * S;
       const maxW_s = maxW * S;
       const letterSpacingPx = letterSpacing * S;
       const tightPad_s = tightPadPx * S;
+      const glitchMaxShift_s = glitchMaxShiftPx * S;
 
       // Choose the mask text size (ts)
       const ts = fitToCssFont
@@ -103,9 +140,9 @@ export default function HeroNavText({
         : Math.max(2, Math.floor(host.getBoundingClientRect().height)) *
           fontSizeRatio;
 
-      // Prepare to measure text widths on the mask context
+      // Prepare to measure text widths (match the render font string)
       mctx.setTransform(1, 0, 0, 1, 0, 0);
-      mctx.font = `${ts}px ${fontFamily}`;
+      mctx.font = `${fontStyle} ${fontWeight} ${ts}px ${fontFamily}`;
       mctx.textBaseline = "alphabetic";
 
       const widthWithSpacing = (str) => {
@@ -152,7 +189,7 @@ export default function HeroNavText({
         // scale
         S,
         ts,
-
+        glitchMaxShift_s,
         // scaled knobs
         rowH_s,
         colW_s,
@@ -160,7 +197,6 @@ export default function HeroNavText({
         maxW_s,
         letterSpacingPx,
         tightPad_s,
-
         // layout
         lineGap,
         lines,
@@ -176,13 +212,21 @@ export default function HeroNavText({
       mctx.setTransform(1, 0, 0, 1, 0, 0);
       mctx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
 
+      // Build the font string
+      const fontStr = `${fontStyle} ${fontWeight} ${ts}px ${fontFamily}`;
+
       mctx.scale(dpr, dpr);
-      mctx.font = `${ts}px ${fontFamily}`;
+      mctx.font = fontStr;
       mctx.textBaseline = "alphabetic";
       mctx.fillStyle = "#fff";
 
+      // Compute total text height
       const totalH = lines.length * ts + (lines.length - 1) * lineGap;
-      let y = h / 2 - totalH / 2 + ts * 0.65;
+      let y = h / 2 - totalTextH(lines, ts, lineGap) / 2 + ts * 0.65;
+
+      const k =
+        (skewDir === "none" ? 0 : skewDir === "left" ? -1 : 1) *
+        Math.tan((skewDeg * Math.PI) / 180);
 
       const widthWithSpacing = (str) => {
         let tot = 0;
@@ -199,11 +243,24 @@ export default function HeroNavText({
         }
       };
 
+      // Apply center-pivot skew so centering stays true
+      mctx.save();
+      if (k !== 0) {
+        mctx.translate(w / 2, 0);
+        mctx.transform(1, 0, k, 1, 0, 0); // skewX
+        mctx.translate(-w / 2, 0);
+      }
+
       for (const line of lines) {
         const lw = widthWithSpacing(line);
         const x = centerAlign ? w / 2 - lw / 2 : ts * 0.1;
         drawLine(line, y, x);
         y += ts + lineGap;
+      }
+      mctx.restore();
+
+      function totalTextH(linesArr, size, gap) {
+        return linesArr.length * size + (linesArr.length - 1) * gap;
       }
     }
 
@@ -251,9 +308,11 @@ export default function HeroNavText({
       }
       ctx.scale(dpr, dpr);
 
-      for (let yy = L.rowH_s * 0.5; yy < h; yy += L.rowH_s) {
-        const xOff =
-          stagger && Math.floor(yy / L.rowH_s) % 2 === 1 ? L.colW_s * 0.5 : 0;
+      const dirSkew = skewDir === "none" ? 0 : skewDir === "left" ? -1 : 1;
+      const nudgeLimit = Math.min(L.glitchMaxShift_s, L.colW_s * 0.35); // stay inside mask nicely
+
+      for (let yy = L.rowH_s * 0.5, iRow = 0; yy < h; yy += L.rowH_s, iRow++) {
+        const xOff = stagger && iRow % 2 === 1 ? L.colW_s * 0.5 : 0;
 
         for (let r = 0; r < subRows; r++) {
           // Slightly tighter subrow spread vs p5 version (keeps look crisp)
@@ -261,10 +320,18 @@ export default function HeroNavText({
           const gy = Math.min(Math.max(ry / h, 0), 1);
           ctx.fillStyle = lerpColorHex(topColor, botColor, gy);
 
-          for (let xx = xOff + L.colW_s * 0.5; xx < w; xx += L.colW_s) {
+          // per-row RNG (deterministic)
+          for (
+            let xx = xOff + L.colW_s * 0.5, iCol = 0;
+            xx < w;
+            xx += L.colW_s, iCol++
+          ) {
             const a = sampleAlphaMax(xx * dpr, ry * dpr);
             const t = a / 255;
-            if (t < edgeThresh) continue;
+            if (t < edgeThresh) {
+              iCol++;
+              continue;
+            }
 
             const aL = sampleAlphaMax((xx - L.colW_s * 0.4) * dpr, ry * dpr);
             const aR = sampleAlphaMax((xx + L.colW_s * 0.4) * dpr, ry * dpr);
@@ -273,10 +340,37 @@ export default function HeroNavText({
               (fadeEdge * (Math.abs(a - aL) + Math.abs(a - aR))) / (255 * 2);
 
             const ww = Math.max(0, maxW * L.S * t * Math.max(0, edgeFactor));
-            if (ww > 0.35) {
-              diamondPath(ctx, xx, ry, ww, L.diamondH_s);
-              ctx.fill();
+            if (ww <= 0.35) {
+              iCol++;
+              continue;
             }
+
+            // ----- subtle static glitch nudge (deterministic) -----
+            // Build a tiny RNG per cell from indices + seed
+            const hval = hash3(iRow, iCol, r, glitchSeed);
+            const r01 = (hval >>> 0) / 4294967296; // [0,1)
+            let gx = 0;
+            if (r01 < glitchProb) {
+              // secondary mixing for signed nudge
+              const h2 = hash3(
+                iRow ^ 17,
+                iCol ^ 131,
+                r ^ 991,
+                glitchSeed ^ 777
+              );
+              const rSigned = ((h2 >>> 0) / 4294967296) * 2 - 1; // [-1,1]
+              // bias a tad toward the current skew direction so it feels cohesive
+              const dirBias = dirSkew * 0.35; // small bias
+              const signed = Math.max(-1, Math.min(1, rSigned + dirBias));
+              gx = signed * nudgeLimit;
+            }
+            // ------------------------------------------------------
+
+            const cx = xx + gx;
+            diamondPath(ctx, cx, ry, ww, L.diamondH_s);
+            ctx.fill();
+
+            iCol++;
           }
         }
       }
@@ -312,6 +406,8 @@ export default function HeroNavText({
     stagger,
     // layout
     fontFamily,
+    fontStyle,
+    fontWeight,
     centerAlign,
     lineGapFrac,
     // sizing mode
@@ -319,17 +415,32 @@ export default function HeroNavText({
     fontSizeRatio,
     baselinePx,
     tightPadPx,
+    // skew
+    skewDir,
+    skewDeg,
+    // glitch
+    glitchProb,
+    glitchMaxShiftPx,
+    glitchSeed,
   ]);
 
   return (
     <div
       ref={hostRef}
       className={className}
-      style={{ position: "relative", width: "100%", lineHeight: 1, ...style }}
+      style={{
+        position: "relative",
+        width: "100%",
+        lineHeight: 1,
+        // helpful for devtools previews:
+        fontFamily,
+        fontStyle,
+        fontWeight,
+        ...style,
+      }}
       aria-label={text}
       role="img"
     >
-      {/* Wrap the canvas if you want to scale it via CSS */}
       <div className="hero-nav-scale">
         <canvas ref={canvasRef} />
       </div>

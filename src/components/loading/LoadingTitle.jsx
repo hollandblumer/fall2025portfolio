@@ -9,7 +9,7 @@ export default function LoadingTitle({
 
   // words
   wordA = "loading",
-  wordB = "HOLLAND",
+  wordB = "holland",
 
   // force text size (px). Omit/undefined to auto-fit
   textSizePx = 150,

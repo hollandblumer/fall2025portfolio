@@ -1,6 +1,16 @@
-/* Uniformly enlarge the final rendered result — proportions stay exact */
-.hero-nav-scale {
-  transform: scale(2); /* ← tweak this */
-  transform-origin: center center; /* key to keep it truly centered */
-  will-change: transform;
+/* Labels stay on top of the cover */
+.navtext {
+  text-align: center;
+  align-items: center;
+
+  width: 200px;
+  /* remove widath:max(120px, 12vw); so centering is true to text width */
+}
+.navtext button {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
 }

@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import HeroNav from "../components/nav/HeroNav.jsx";
 import About from "./about/About.jsx";
+import HeroNavSliced from "./nav/HeroNavSliced.jsx";
 
 const P5_CDN = "https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.2/p5.min.js";
 
@@ -648,7 +649,7 @@ export default function Hero() {
       renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       renderer.setSize(getW(), getH());
-      renderer.setClearColor("#e9f259");
+      renderer.setClearColor("#FABC2E");
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       mount.appendChild(renderer.domElement);
 
@@ -1107,27 +1108,13 @@ export default function Hero() {
 
         {/* Labels (always above the cover) */}
         <div ref={labelRefs.about} className="navtext" onClick={onAboutClick}>
-          <HeroNav
-            text="ABOUT"
-            letterSpacing={10}
-            baselinePx={60}
-            fitToCssFont
-            tightPadPx={30}
-            topColor="#403326"
-            botColor="#403326"
-          />
+          <HeroNavSliced text="about" skewDegAbs={2} direction="left" />
+
           <button aria-label="About" />
         </div>
         <div ref={labelRefs.work} className="navtext" onClick={onWorkClick}>
-          <HeroNav
-            text="WORK"
-            letterSpacing={10}
-            baselinePx={60}
-            fitToCssFont
-            tightPadPx={30}
-            topColor="#403326"
-            botColor="#403326"
-          />
+          <HeroNavSliced text="work" skewDegAbs={2} direction="left" />
+
           <button aria-label="Work" />
         </div>
         <div
@@ -1135,27 +1122,13 @@ export default function Hero() {
           className="navtext"
           onClick={onContactClick}
         >
-          <HeroNav
-            text="CONTACT"
-            letterSpacing={10}
-            baselinePx={60}
-            fitToCssFont
-            tightPadPx={30}
-            topColor="#403326"
-            botColor="#403326"
-          />
+          <HeroNavSliced text="contact" skewDegAbs={2} direction="left" />
+
           <button aria-label="Contact" />
         </div>
         <div ref={labelRefs.social} className="navtext" onClick={onSocialClick}>
-          <HeroNav
-            text="SOCIAL"
-            letterSpacing={10}
-            baselinePx={60}
-            fitToCssFont
-            tightPadPx={30}
-            topColor="#403326"
-            botColor="#403326"
-          />
+          <HeroNavSliced text="social" skewDegAbs={2} direction="left" />
+
           <button aria-label="Social" />
         </div>
 
@@ -1253,7 +1226,7 @@ const styles = {
     position: "relative",
     width: "100vw",
     height: "100svh",
-    background: "#e9f259",
+    background: "#FABC2E",
     fontFamily: "Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial",
     overflow: "hidden",
     touchAction: "none",
