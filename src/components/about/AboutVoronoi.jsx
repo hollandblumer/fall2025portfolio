@@ -18,13 +18,16 @@ export default function AboutVoronoi() {
       const letters = WORD.split("");
 
       // horizontal motion (how much letters overlap)
-      const MIN_SPACING_FACTOR = 0.18;
-      const MAX_SPACING_FACTOR = 0.9;
+      const MIN_SPACING_FACTOR = 0.4;
+      const MAX_SPACING_FACTOR = 0.55;
       const TRACK_SPEED = 0.0008;
 
       // internal canvas size: wide band, not super tall
       const BASE_WIDTH = 1080;
-      const BASE_HEIGHT = 260;
+      const BASE_HEIGHT = 460;
+
+      // Calculate the intended aspect ratio
+      const ASPECT_RATIO = BASE_WIDTH / BASE_HEIGHT; // ~2.348
 
       // Voronoi / shards
       let RESAMPLED_VERTS = 14;
@@ -60,18 +63,30 @@ export default function AboutVoronoi() {
         canvas.parent(parent);
         p.pixelDensity(1);
 
-        // scale visually like a heading, but keep internal res high
+        // --- FIX: Use a fixed aspect ratio for display ---
+        // 1. Set the display width to 100% of the container.
         canvas.elt.style.width = "100%";
-        canvas.elt.style.height = "auto";
-        canvas.elt.style.maxHeight = "160px"; // tweak if you want shorter/taller
+
+        // 2. Calculate and set the display height based on the display width
+        //    and the internal aspect ratio (1080 / 460).
+        //    This ensures the canvas is scaled without stretching.
+        canvas.elt.style.height = `calc(100% / ${ASPECT_RATIO})`;
+
+        // Remove maxHeight, as the calculated height maintains scale
+        // canvas.elt.style.maxHeight = "100px";
 
         initGraphics();
       };
 
       // we keep internal size fixed; just recompute params on resize
       p.windowResized = () => {
+        // NOTE: If you resize the browser window, the canvas element
+        // will automatically scale via the CSS above, so no p5.resizeCanvas()
+        // is needed, only re-initialization of params if they are device-dependent.
         initGraphics();
       };
+
+      // ... (p.draw and all other functions remain the same) ...
 
       p.draw = () => {
         p.background(BG_COLOR);
@@ -80,8 +95,8 @@ export default function AboutVoronoi() {
         const cx = p.width * 0.5;
         const cy = p.height * 0.5;
 
-        // key line: font uses ~48% of band height instead of 70%
-        const fontSize = p.height * 0.48;
+        // Using 0.75 for non-squished look
+        const fontSize = p.height * 0.75;
 
         const s = p.sin(t * TRACK_SPEED) * 0.5 + 0.5;
         const spacing = p.lerp(
@@ -398,6 +413,8 @@ export default function AboutVoronoi() {
       className="about-voronoi"
       style={{
         width: "100%",
+        // Adding the aspect-ratio property here is an alternative fix,
+        // but fixing the CSS inside p.setup is generally more reliable for p5.js.
         background: "#c5c5c5",
         overflow: "hidden",
       }}

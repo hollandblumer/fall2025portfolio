@@ -1,12 +1,18 @@
 /* Load the Inter font */
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap");
+html,
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #c5c5c5; /* 👈 same as the demo */
+}
 
 /* MAIN LAYOUT */
 .home-container {
   height: 100vh; /* lock to viewport on desktop */
   display: flex;
   flex-direction: row;
-  background: #c5c5c5cf;
+  background: transparent;
   color: #3f3d3c;
   position: relative;
   overflow: hidden; /* kill weird scroll on desktop */
