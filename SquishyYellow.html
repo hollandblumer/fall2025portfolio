@@ -48,10 +48,8 @@
     </style>
   </head>
   <body>
-    <!-- Film grain canvas (background overlay) -->
     <canvas id="filmLayer"></canvas>
 
-    <!-- Film grain script -->
     <script type="module">
       import * as THREE from "https://esm.sh/three";
       import { EffectComposer } from "https://esm.sh/three/examples/jsm/postprocessing/EffectComposer.js";
@@ -99,7 +97,6 @@
       })();
     </script>
 
-    <!-- Squishy HOLLAND BLUMER p5 sketch -->
     <script>
       /* --------------------------------------------------------
           Basic 2D coordinate + geometry utilities
@@ -421,7 +418,22 @@
       let effectiveVertexDistance;
       let letterFont;
 
-      const WORD_LINES = ["HOLLAND", "BLUMER"];
+      // --- MODIFIED SECTION START (Threshold lowered for iframes) ---
+      // Define a constant for the maximum width to show both words.
+      // Lowered to 480px to account for the iframe only reporting its own dimensions.
+      const MAX_WIDTH_FOR_HOLLAND_ONLY = 480;
+      let WORD_LINES;
+
+      function setWordLines() {
+        // If the iframe's current width is 480px or smaller, only show HOLLAND
+        if (windowWidth <= MAX_WIDTH_FOR_HOLLAND_ONLY) {
+          WORD_LINES = ["HOLLAND"];
+        } else {
+          // Otherwise (iframe is >480px wide, likely on a desktop), show both HOLLAND and BLUMER
+          WORD_LINES = ["HOLLAND", "BLUMER"];
+        }
+      }
+      // --- MODIFIED SECTION END ---
 
       function preload() {
         letterFont = loadFont(
@@ -445,6 +457,8 @@
       }
 
       function buildLetters() {
+        setWordLines(); // Determine which words to show based on current iframe size
+
         effectiveVertexDistance = vertexDistanceRel * min(width, height);
 
         const m = min(width, height);
@@ -503,6 +517,7 @@
           const targetWidth = origLineWidth * PACK_FACTOR;
           const lineStartX = (width - targetWidth) / 2;
 
+          // Recalculate vertical positioning based on the actual number of lines
           const totalTextHeight = lineSpacing * (WORD_LINES.length - 1);
           const firstBaseY = height * 0.5 - totalTextHeight * 0.5;
           const baseY = firstBaseY + lineIndex * lineSpacing;
