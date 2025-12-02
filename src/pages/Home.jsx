@@ -105,7 +105,7 @@ export default function Home() {
 
         <section className="right-column">
           <iframe
-            src="./SquishyYellow.html"
+            src="./SquishyYellowMobileHolland.html"
             title="Squishy Letters"
             className="squishy-frame"
           ></iframe>

@@ -1,16 +1,13 @@
 .about-section {
-  width: 100%;
   background: #c5c5c5;
   display: flex;
   flex-direction: column;
   justify-content: center;
   /* REMOVE vertical centering */
   align-items: flex-start;
-  padding: 100px 0; /* top spacing so the title isn’t glued to the browser edge */
 }
 
 .about-inner {
-  max-width: 1200px;
   width: 100%;
 
   /* STACK TITLE ABOVE BLURB ALWAYS */
@@ -29,6 +26,9 @@
   line-height: 1.4;
   color: #333;
   color: #4f4b4b;
+  box-sizing: border-box;
+
+  /* Add your padding here */
   padding: 60px;
 }
 
