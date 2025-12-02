@@ -2,9 +2,12 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import ElasticMenu from "../components/nav/ElasticMenu.jsx";
 import About from "../components/about/About.jsx";
-import OverlapBlobs from "./OverlapBlobs.jsx";
+import OverlapBlobs from "./OverlapBlobs.jsx"; // Assuming this is needed
 import MorphText from "../components/text/MorphText.jsx";
 import FilmGrainLayer from "../components/textures/FilmGrainLayer.jsx";
+
+const ANIMATION_DURATION_MS = 2000;
+const PRELOADER_IFRAME_SRC = "./LoadingFh.html"; // New HTML file
 
 export default function Home() {
   const { hash } = useLocation();
@@ -13,6 +16,18 @@ export default function Home() {
 
   // 1. State to track if the screen is mobile or tablet (<= 1024px)
   const [isMobileOrTablet, setIsMobileOrTablet] = useState(false);
+
+  // --- NEW: Timer to hide the preloader iframe ---
+  useEffect(() => {
+    // Start a timer to hide the preloader after the animation completes
+    const timer = setTimeout(() => {
+      setShowPreloader(false);
+    }, ANIMATION_DURATION_MS);
+
+    // Cleanup the timer when the component unmounts
+    return () => clearTimeout(timer);
+  }, []); // Run only once on mount
+  // ------------------------------------------------
 
   // 2. useEffect to handle initial scroll position
   useEffect(() => {
@@ -42,10 +57,30 @@ export default function Home() {
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  // 4. Determine the iframe source based on screen size
+  // 4. Determine the iframe source based on screen size (for the main content)
   const iframeSrc = isMobileOrTablet
     ? "./SquishyYellowMobileHolland.html" // Source for mobile/tablet
     : "./SquishyYellow.html"; // Source for desktop
+
+  // --- 5. Conditional Iframe Preloader Render ---
+  if (showPreloader) {
+    return (
+      <iframe
+        src={PRELOADER_IFRAME_SRC}
+        title="Loading Animation"
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100vw",
+          height: "100vh",
+          border: "none",
+          zIndex: 9999, // Ensure it covers everything
+        }}
+      />
+    );
+  }
+  // ------------------------------------------------
 
   return (
     <>

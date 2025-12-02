@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FitzHugh–Nagumo Preloader</title>
+    <style>
+      /* Use the requested Grey background: #C6C6C6 */
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: #c6c6c6;
+        color: #f7eaac; /* Yellow text (not used here, but good for fallbacks) */
+        font-family: sans-serif;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+        margin: 0;
+        width: 100vw;
+        height: 100vh;
+      }
+      #fail {
+        color: red;
+        white-space: pre-wrap;
+        max-width: 90%;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 20px;
+        border: 2px solid red;
+        z-index: 1000;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- VERTEX SHADER -->
+    <script type="x-webgl/x-vertex-shader" id="vertex-shader">
+      attribute vec2 a_position;
+      void main() {
+          gl_Position = vec4(a_position, 0.0, 1.0);
+      }
+    </script>
+
+    <!-- TIMESTEP SHADER -->
+    <script type="x-webgl/x-fragment-shader" id="timestep-shader">
+      precision mediump float;
+      uniform sampler2D u_image;
+      uniform vec2 u_size;
+      const float A0 = -0.01;
+      const float A1 = 2.0;
+      const float EPSILON = 0.1;
+      const float DELTA = 7.0;
+      const float TIMESTEP = 0.03;
+      const float SCALE = 1.0;
+      void main() {
+          vec2 p = gl_FragCoord.xy;
+          vec2 n = p + vec2(0.0,  1.0);
+          vec2 e = p + vec2(1.0,  0.0);
+          vec2 s = p + vec2(0.0, -1.0);
+          vec2 w = p + vec2(-1.0, 0.0);
+          vec2 val = texture2D(u_image, p / u_size).xy;
+          vec2 laplacian =
+                texture2D(u_image, n / u_size).xy
+              + texture2D(u_image, s / u_size).xy
+              + texture2D(u_image, e / u_size).xy
+              + texture2D(u_image, w / u_size).xy
+              - 4.0 * val;
+          vec2 delta = vec2(
+              val.x - val.x*val.x*val.x - val.y + laplacian.x * SCALE,
+              EPSILON * (val.x - A1 * val.y - A0) + DELTA * laplacian.y * SCALE
+          );
+          gl_FragColor = vec4(val + delta * TIMESTEP, 0.0, 0.0);
+      }
+    </script>
+
+    <!-- RENDER SHADER - Updated Colors -->
+    <script type="x-webgl/x-fragment-shader" id="render-shader">
+      precision mediump float;
+      uniform sampler2D u_image;
+      uniform vec2 u_size;
+      const float COLOR_MIN = 0.10;
+      const float COLOR_MAX = 0.015;
+
+      /* FG = #F7EAAC (Yellow Text/Excitation)
+         BG = #C6C6C6 (Grey Background) */
+      const vec3 FG_COLOR = vec3(0.969, 0.918, 0.675);
+      const vec3 BG_COLOR = vec3(0.776, 0.776, 0.776);
+
+      void main() {
+          float c = texture2D(u_image, gl_FragCoord.xy / u_size).y;
+          float v = clamp((c - COLOR_MIN) / (COLOR_MAX - COLOR_MIN), 0.0, 1.0);
+          vec3 color = mix(BG_COLOR, FG_COLOR, v);
+          gl_FragColor = vec4(color, 1.0);
+      }
+    </script>
+
+    <!-- COPY SHADER -->
+    <script type="x-webgl/x-fragment-shader" id="copy-shader">
+      precision mediump float;
+      uniform sampler2D u_image;
+      uniform vec2 u_size;
+      void main() {
+          vec2 uv = gl_FragCoord.xy / u_size;
+          gl_FragColor = texture2D(u_image, uv);
+      }
+    </script>
+
+    <script>
+      var W = 512,
+        H = 512;
+      const SEED_TEXT = "LOADING";
+      const SEED_FONT_SIZE = 90;
+      const GROW_DURATION = 1.5;
+      const RETRACT_DURATION = 0.5;
+      const SNAP_COUNT = 20;
+
+      function fail(msg) {
+        var e = document.getElementById("fail");
+        e.style.display = "block";
+        e.textContent = "Error: " + msg;
+        throw msg;
+      }
+
+      function checkCompatibility(gl) {
+        if (!gl) fail("WebGL not supported");
+        var ext = gl.getExtension("OES_texture_float");
+        if (!ext)
+          fail(
+            "Missing OES_texture_float. Float textures are required for simulation."
+          );
+      }
+
+      function createShader(gl, type, id) {
+        var shader = gl.createShader(type);
+        // Use document.getElementById(id).textContent to safely retrieve shader source
+        gl.shaderSource(shader, document.getElementById(id).textContent);
+        gl.compileShader(shader);
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS))
+          fail(gl.getShaderInfoLog(shader));
+        return shader;
+      }
+
+      function createAndLinkProgram(gl, vs, fs) {
+        var prog = gl.createProgram();
+        gl.attachShader(prog, vs);
+        gl.attachShader(prog, fs);
+        gl.linkProgram(prog);
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS))
+          fail(gl.getProgramInfoLog(prog));
+        return prog;
+      }
+
+      function loadVertexData(gl, prog) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+        gl.bufferData(
+          gl.ARRAY_BUFFER,
+          new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]),
+          gl.STATIC_DRAW
+        );
+        var loc = gl.getAttribLocation(prog, "a_position");
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+      }
+
+      function newTexture(gl, initial_state) {
+        var t = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, t);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          gl.RGBA,
+          W,
+          H,
+          0,
+          gl.RGBA,
+          gl.FLOAT,
+          initial_state
+        );
+        return t;
+      }
+
+      function newFramebuffer(gl, texture) {
+        var fb = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+        gl.framebufferTexture2D(
+          gl.FRAMEBUFFER,
+          gl.COLOR_ATTACHMENT0,
+          gl.TEXTURE_2D,
+          texture,
+          0
+        );
+        return fb;
+      }
+
+      function getInitialState() {
+        var a = new Float32Array(4 * W * H);
+        var off = document.createElement("canvas");
+        off.width = W;
+        off.height = H;
+        var ctx = off.getContext("2d");
+
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = "white";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "bold " + SEED_FONT_SIZE + "px sans-serif";
+        ctx.fillText(SEED_TEXT, W * 0.5, H * 0.5);
+
+        var img = ctx.getImageData(0, 0, W, H).data;
+
+        for (var y = 0; y < H; y++) {
+          for (var x = 0; x < W; x++) {
+            var i = W * y + x;
+            var srcY = H - 1 - y;
+            var idx = 4 * (W * srcY + x);
+            var r = img[idx];
+            var g = img[idx + 1];
+            var b = img[idx + 2];
+            var aChan = img[idx + 3];
+            var brightness = (r + g + b) / (3 * 255);
+            var isText = brightness > 0.3 && aChan > 0;
+
+            a[4 * i + 0] = isText ? 0.99 : -0.7;
+            a[4 * i + 1] = -0.3;
+          }
+        }
+        return a;
+      }
+
+      function init() {
+        var canvas = document.createElement("canvas");
+        canvas.id = "canvas";
+        canvas.width = W;
+        canvas.height = H;
+        document.body.appendChild(canvas);
+
+        // Try to get WebGL context
+        var gl =
+          canvas.getContext("webgl", { antialias: false }) ||
+          canvas.getContext("experimental-webgl", { antialias: false });
+
+        try {
+          checkCompatibility(gl);
+        } catch (e) {
+          return; // Stop on compatibility error
+        }
+
+        gl.viewport(0, 0, W, H);
+
+        // 1. Compile and Link Programs
+        var vertex_shader = createShader(gl, gl.VERTEX_SHADER, "vertex-shader");
+        var timestep_shader = createShader(
+          gl,
+          gl.FRAGMENT_SHADER,
+          "timestep-shader"
+        );
+        var render_shader = createShader(
+          gl,
+          gl.FRAGMENT_SHADER,
+          "render-shader"
+        );
+        var copy_shader = createShader(gl, gl.FRAGMENT_SHADER, "copy-shader");
+
+        var timestep_prog = createAndLinkProgram(
+          gl,
+          vertex_shader,
+          timestep_shader
+        );
+        var render_prog = createAndLinkProgram(
+          gl,
+          vertex_shader,
+          render_shader
+        );
+        var copy_prog = createAndLinkProgram(gl, vertex_shader, copy_shader);
+
+        // 2. Set up Programs
+        gl.useProgram(render_prog);
+        loadVertexData(gl, render_prog);
+        gl.uniform2f(gl.getUniformLocation(render_prog, "u_size"), W, H);
+
+        gl.useProgram(timestep_prog);
+        loadVertexData(gl, timestep_prog);
+        gl.uniform2f(gl.getUniformLocation(timestep_prog, "u_size"), W, H);
+
+        gl.useProgram(copy_prog);
+        loadVertexData(gl, copy_prog);
+        gl.uniform2f(gl.getUniformLocation(copy_prog, "u_size"), W, H);
+
+        // 3. Create Buffers/Textures
+        var initial_state = getInitialState();
+        var t1 = newTexture(gl, initial_state);
+        var t2 = newTexture(gl, null);
+        var fb1 = newFramebuffer(gl, t1);
+        var fb2 = newFramebuffer(gl, t2);
+
+        var currentTex = t1,
+          currentFb = fb1;
+        var otherTex = t2,
+          otherFb = fb2;
+
+        var snapTextures = [];
+        var snapFbos = [];
+        for (var i = 0; i < SNAP_COUNT; i++) {
+          snapTextures[i] = newTexture(gl, null);
+          snapFbos[i] = newFramebuffer(gl, snapTextures[i]);
+        }
+
+        // Copy initial state to first snapshot
+        gl.useProgram(copy_prog);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, snapFbos[0]);
+        gl.bindTexture(gl.TEXTURE_2D, t1);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+        var snapshotIndex = 1;
+        var snapshotInterval = GROW_DURATION / SNAP_COUNT;
+        var nextSnapshotTime = snapshotInterval;
+
+        var startTime = performance.now();
+
+        function step(elapsedMs) {
+          var elapsedSec = elapsedMs / 1000.0;
+
+          if (elapsedSec < GROW_DURATION) {
+            gl.useProgram(timestep_prog);
+
+            for (var i = 0; i < 120; i++) {
+              gl.bindTexture(gl.TEXTURE_2D, currentTex);
+              gl.bindFramebuffer(gl.FRAMEBUFFER, otherFb);
+              gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+              var ttmp = currentTex;
+              currentTex = otherTex;
+              otherTex = ttmp;
+              var ftmp = currentFb;
+              currentFb = otherFb;
+              otherFb = ftmp;
+            }
+
+            if (elapsedSec >= nextSnapshotTime && snapshotIndex < SNAP_COUNT) {
+              gl.useProgram(copy_prog);
+              gl.bindFramebuffer(gl.FRAMEBUFFER, snapFbos[snapshotIndex]);
+              gl.bindTexture(gl.TEXTURE_2D, currentTex);
+              gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+              snapshotIndex++;
+              nextSnapshotTime += snapshotInterval;
+            }
+
+            gl.useProgram(render_prog);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            gl.bindTexture(gl.TEXTURE_2D, currentTex);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+          } else if (elapsedSec < GROW_DURATION + RETRACT_DURATION) {
+            var tau = (elapsedSec - GROW_DURATION) / RETRACT_DURATION;
+            tau = Math.min(Math.max(tau, 0), 1);
+
+            var idx = Math.round((1 - tau) * (snapshotIndex - 1));
+            idx = Math.max(0, Math.min(idx, snapshotIndex - 1));
+
+            gl.useProgram(render_prog);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            gl.bindTexture(gl.TEXTURE_2D, snapTextures[idx]);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+          } else {
+            // Final state: display the very first snapshot (or current frame if 0)
+            gl.useProgram(render_prog);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            gl.bindTexture(gl.TEXTURE_2D, snapTextures[0]);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+            // OPTIONAL: Stop the animation loop here if you want it completely frozen after completion.
+            // But usually, it's safer to let the parent component handle removal.
+          }
+        }
+
+        function frame(now) {
+          step(now - startTime);
+          requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
+      }
+
+      // Attach init to window load
+      window.onload = init;
+    </script>
+    <div id="fail" style="display: none"></div>
+  </body>
+</html>
