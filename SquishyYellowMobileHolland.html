@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>
+      Squishy HOLLAND BLUMER – Packed Yellow with Red Edges + Film Grain
+    </title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.js"></script>
+
+    <style>
+      :root {
+        --film-opacity: 0.7; /* overall strength of grain */
+        --film-blend: soft-light; /* soft-light, overlay, multiply, etc. */
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: #c5c5c5; /* requested background */
+      }
+
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+
+      /* All non-film canvases (p5) */
+      canvas {
+        display: block;
+        touch-action: none;
+      }
+
+      /* Fullscreen film layer */
+      #filmLayer {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        mix-blend-mode: var(--film-blend);
+        opacity: var(--film-opacity);
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="filmLayer"></canvas>
+
+    <script type="module">
+      import * as THREE from "https://esm.sh/three";
+      import { EffectComposer } from "https://esm.sh/three/examples/jsm/postprocessing/EffectComposer.js";
+      import { RenderPass } from "https://esm.sh/three/examples/jsm/postprocessing/RenderPass.js";
+      import { FilmPass } from "https://esm.sh/three/examples/jsm/postprocessing/FilmPass.js";
+      import { OutputPass } from "https://esm.sh/three/examples/jsm/postprocessing/OutputPass.js";
+
+      const canvas = document.getElementById("filmLayer");
+
+      // Transparent renderer so it just overlays grain
+      const renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: false,
+        alpha: true,
+      });
+      renderer.setClearColor(0x000000, 0);
+
+      // Simple ortho camera + empty scene (just a flat background for film pass)
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x808080); // mid-grey for film texture
+      const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+      const composer = new EffectComposer(renderer);
+      composer.addPass(new RenderPass(scene, camera));
+
+      // FilmPass(intensity, scanlineIntensity, scanlineCount, grayscale)
+      const filmPass = new FilmPass(0.26, 0.24, 648, false);
+      composer.addPass(filmPass);
+
+      composer.addPass(new OutputPass());
+
+      function onResize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        renderer.setPixelRatio(dpr);
+        renderer.setSize(window.innerWidth, window.innerHeight, false);
+        composer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      window.addEventListener("resize", onResize);
+      onResize();
+
+      (function loop() {
+        composer.render();
+        requestAnimationFrame(loop);
+      })();
+    </script>
+
+    <script>
+      /* --------------------------------------------------------
+          Basic 2D coordinate + geometry utilities
+      -------------------------------------------------------- */
+
+      class Coordinate2D {
+        constructor(x, y) {
+          this.x = x;
+          this.y = y;
+        }
+      }
+
+      const geometry = {
+        getLineNormal: (x1, y1, x2, y2) => {
+          return { x: y2 - y1, y: -(x2 - x1) };
+        },
+
+        limit: (coord, maxLength) => {
+          if (!coord) return null;
+          let mag = Math.sqrt(coord.x * coord.x + coord.y * coord.y);
+          if (mag > maxLength) {
+            return {
+              x: (coord.x / mag) * maxLength,
+              y: (coord.y / mag) * maxLength,
+            };
+          }
+          return coord;
+        },
+
+        polygonArea: (polygon) => {
+          let area = 0;
+          const n = polygon.length;
+          for (let i = 1; i <= n; i++) {
+            area +=
+              polygon[i % n].x *
+              (polygon[(i + 1) % n].y - polygon[(i - 1) % n].y);
+          }
+          return area / 2;
+        },
+      };
+
+      /* --------------------------------------------------------
+          Particles + joints
+      -------------------------------------------------------- */
+
+      class Particle extends Coordinate2D {
+        constructor({ x, y, z, radius, damping, friction, mass, parent }) {
+          super(x, y);
+          this.prevX = x;
+          this.prevY = y;
+          this.vx = 0;
+          this.vy = 0;
+          this.radius = radius ?? 10;
+          this.baseRadius = this.radius;
+          this.damping = damping ?? 0.9;
+          this.friction = friction ?? 0.1;
+          this.mass = mass ?? 1;
+          this.parent = parent;
+
+          this.restX = x;
+          this.restY = y;
+          this.restDX = 0;
+          this.restDY = 0;
+
+          this.squishWeight = 1;
+          this.anchorWeight = 1;
+        }
+
+        setClient(client) {
+          this.client = client;
+        }
+
+        move(dx, dy) {
+          this.x += dx;
+          this.y += dy;
+        }
+
+        addForce(fx, fy) {
+          this.vx += fx;
+          this.vy += fy;
+        }
+
+        testCollision(otherX, otherY, radius) {
+          const diffx = otherX - this.x;
+          const diffy = otherY - this.y;
+          const diffMag = diffx * diffx + diffy * diffy;
+          const combinedRadius = radius + this.radius;
+          if (diffMag < combinedRadius * combinedRadius) {
+            const dist = Math.sqrt(diffMag);
+            const overlap = combinedRadius - dist;
+            if (dist === 0) return new Coordinate2D(0, 0);
+            const nx = diffx / dist;
+            const ny = diffy / dist;
+            return new Coordinate2D(-nx * overlap, -ny * overlap);
+          }
+          return null;
+        }
+
+        collide(otherX, otherY, radius) {
+          const diffx = otherX - this.x;
+          const diffy = otherY - this.y;
+          const diffMag = diffx * diffx + diffy * diffy;
+          const combinedRadius = radius + this.radius;
+          if (diffMag < combinedRadius * combinedRadius) {
+            const dist = Math.sqrt(diffMag);
+            const overlap = combinedRadius - dist;
+            if (dist === 0) return null;
+            const nx = diffx / dist;
+            const ny = diffy / dist;
+
+            this.move(-nx * overlap * 0.5, -ny * overlap * 0.5);
+            this.prevX = lerp(this.prevX, this.x, this.friction);
+            this.prevY = lerp(this.prevY, this.y, this.friction);
+
+            return new Coordinate2D(-nx * overlap, -ny * overlap);
+          }
+          return null;
+        }
+
+        constrain(left, top, right, bottom) {
+          const { x, y, friction, radius } = this;
+
+          left += radius;
+          top += radius;
+          right -= radius;
+          bottom -= radius;
+
+          let collide = false;
+
+          if (x > right) {
+            this.x = right;
+            collide = true;
+          } else if (x < left) {
+            this.x = left;
+            collide = true;
+          }
+          if (y > bottom) {
+            this.y = bottom;
+            collide = true;
+          } else if (y < top) {
+            this.y = top;
+            collide = true;
+          }
+
+          if (collide) {
+            this.prevX = lerp(this.prevX, this.x, friction);
+            this.prevY = lerp(this.prevY, this.y, friction);
+          }
+        }
+
+        update(dt = 1) {
+          this.prevX = this.x;
+          this.prevY = this.y;
+          this.x += this.vx * dt;
+          this.y += this.vy * dt;
+        }
+
+        endUpdate(dt = 1) {
+          const m = this.damping / dt;
+          this.vx = (this.x - this.prevX) * m;
+          this.vy = (this.y - this.prevY) * m;
+        }
+
+        updateClient() {
+          if (this.client) this.client.update();
+        }
+      }
+
+      class ChainableParticle extends Particle {
+        setIsRoot(isRoot) {
+          this.isRoot = isRoot;
+        }
+        setNextSibling(sibling) {
+          this.nextSibling = sibling;
+        }
+        setPrevSibling(sibling) {
+          this.prevSibling = sibling;
+        }
+      }
+
+      class DistanceJoint {
+        constructor(pointA, pointB, len, strength) {
+          this.pointA = pointA;
+          this.pointB = pointB;
+          this.originalLen = len;
+          this.len = len;
+          this.strength = strength;
+        }
+
+        update(dt = 1) {
+          const diffx = this.pointB.x - this.pointA.x;
+          const diffy = this.pointB.y - this.pointA.y;
+          const mag = Math.sqrt(diffx * diffx + diffy * diffy);
+          const diffMag = this.len - mag;
+          if (mag > 0) {
+            const totalMass = this.pointA.mass + this.pointB.mass;
+            const dA =
+              (((this.pointA.mass / totalMass) * diffMag * this.strength) /
+                mag) *
+              -dt;
+            const dB =
+              (((this.pointB.mass / totalMass) * diffMag * this.strength) /
+                mag) *
+              dt;
+            this.pointA.move(diffx * dA, diffy * dA);
+            this.pointB.move(diffx * dB, diffy * dB);
+          }
+        }
+      }
+
+      /* --------------------------------------------------------
+          Spatial hash grid (lazy, allocation-friendly)
+      -------------------------------------------------------- */
+
+      class HashGrid {
+        constructor(width, height, cellSize) {
+          this.width = width;
+          this.height = height;
+          this.cellSize = cellSize;
+          this.grid = new Map();
+          this._scratch = [];
+        }
+
+        getIndex(value) {
+          return (value / this.cellSize) | 0;
+        }
+
+        _getKeyByIndices(xi, yi) {
+          return xi + "." + yi;
+        }
+
+        getKey(x, y) {
+          return this._getKeyByIndices(this.getIndex(x), this.getIndex(y));
+        }
+
+        addItem(item) {
+          const key = this.getKey(item.x, item.y);
+          let cell = this.grid.get(key);
+          if (!cell) {
+            cell = new Set();
+            this.grid.set(key, cell);
+          }
+          cell.add(item);
+          return cell;
+        }
+
+        query(x, y, radius) {
+          const xi0 = this.getIndex(x - radius) - 1;
+          const xi1 = this.getIndex(x + radius) + 1;
+          const yi0 = this.getIndex(y - radius) - 1;
+          const yi1 = this.getIndex(y + radius) + 1;
+
+          const result = this._scratch;
+          result.length = 0;
+
+          for (let xi = xi0; xi <= xi1; xi++) {
+            for (let yi = yi0; yi <= yi1; yi++) {
+              const key = this._getKeyByIndices(xi, yi);
+              const cell = this.grid.get(key);
+              if (cell) {
+                cell.forEach((item) => result.push(item));
+              }
+            }
+          }
+          return result;
+        }
+
+        createClient(item) {
+          return new HashGridClient(this, item);
+        }
+      }
+
+      class HashGridClient {
+        constructor(hashGrid, item) {
+          this.hashGrid = hashGrid;
+          this.item = item;
+          this.indexX = this.hashGrid.getIndex(this.item.x);
+          this.indexY = this.hashGrid.getIndex(this.item.y);
+          this.cell = this.hashGrid.addItem(this.item);
+        }
+
+        update() {
+          const newIndexX = this.hashGrid.getIndex(this.item.x);
+          const newIndexY = this.hashGrid.getIndex(this.item.y);
+          if (newIndexX === this.indexX && newIndexY === this.indexY) return;
+
+          this.cell.delete(this.item);
+          this.cell = this.hashGrid.addItem(this.item);
+          this.indexX = newIndexX;
+          this.indexY = newIndexY;
+        }
+
+        delete() {
+          this.cell.delete(this.item);
+        }
+      }
+
+      /* --------------------------------------------------------
+          Setup and Main Loop
+      -------------------------------------------------------- */
+
+      let substeps = 6;
+      const vertexDistanceRel = 0.008;
+
+      let marginX = 40;
+      let marginY = 40;
+      const PACK_FACTOR = 0.7;
+
+      // growth control
+      const GROWTH_RATE = 0.35;
+      const MAX_SCALE = 3.8;
+      const SQUISH_FRACTION = 0.1;
+
+      let mx, my;
+      let blobs = [];
+      let particles = [];
+      let distanceJoints = [];
+      let hashGrid;
+      let effectiveVertexDistance;
+      let letterFont;
+
+      // --- MODIFIED SECTION START ---
+      // Define a constant for the maximum width to show both words (e.g., iPad portrait is 768px)
+      const MAX_WIDTH_FOR_HOLLAND_ONLY = 768;
+      let WORD_LINES; // This will be set dynamically in buildLetters
+
+      function setWordLines() {
+        // If window is 768px or smaller, only show HOLLAND
+        if (windowWidth <= MAX_WIDTH_FOR_HOLLAND_ONLY) {
+          WORD_LINES = ["HOLLAND"];
+        } else {
+          // Otherwise (larger screens), show both HOLLAND and BLUMER
+          WORD_LINES = ["HOLLAND", "BLUMER"];
+        }
+      }
+      // --- MODIFIED SECTION END ---
+
+      function preload() {
+        letterFont = loadFont(
+          "https://assets.codepen.io/9259849/RubikMonoOne-Regular_1.ttf"
+        );
+      }
+
+      function setup() {
+        createCanvas(windowWidth, windowHeight);
+        colorMode(RGB, 255);
+        pixelDensity(1);
+        frameRate(50);
+        cursor(CROSS);
+        buildLetters();
+      }
+
+      function windowResized() {
+        resizeCanvas(windowWidth, windowHeight);
+        // full restart so letters re-grow / re-pack for new size
+        buildLetters();
+      }
+
+      function buildLetters() {
+        setWordLines(); // Determine which words to show based on current window size
+
+        effectiveVertexDistance = vertexDistanceRel * min(width, height);
+
+        const m = min(width, height);
+        marginX = m * 0.08;
+        marginY = m * 0.08;
+
+        mx = width / 2;
+        my = height / 2;
+
+        hashGrid = new HashGrid(
+          width,
+          height,
+          Math.floor(effectiveVertexDistance * 2)
+        );
+        particles = [];
+        distanceJoints = [];
+        blobs = [];
+
+        const minLength = min(width, height);
+        const radius = minLength * 0.16;
+        const fontSize = radius * 2.7;
+        const lineSpacing = radius * 1.6;
+
+        let letterIndex = 0;
+
+        for (let lineIndex = 0; lineIndex < WORD_LINES.length; lineIndex++) {
+          const WORD = WORD_LINES[lineIndex];
+          const letters = WORD.split("");
+
+          const infos = letters.map((ch) => {
+            if (ch === " ") {
+              return { char: " ", width: radius * 0.8, isSpace: true };
+            }
+            const b = letterFont.textBounds(ch, 0, 0, fontSize);
+            return { char: ch, width: b.w, isSpace: false };
+          });
+
+          const LETTER_GAP = radius * 0.25;
+
+          let localCenters = [];
+          let xCursor = 0;
+
+          for (let i = 0; i < infos.length; i++) {
+            const info = infos[i];
+            if (info.isSpace) {
+              xCursor += info.width;
+              continue;
+            }
+            const cxLocal = xCursor + info.width / 2;
+            localCenters.push({ index: i, cxLocal, width: info.width });
+            xCursor += info.width;
+            if (i < infos.length - 1) xCursor += LETTER_GAP;
+          }
+
+          const origLineWidth = xCursor;
+          const targetWidth = origLineWidth * PACK_FACTOR;
+          const lineStartX = (width - targetWidth) / 2;
+
+          // Recalculate vertical positioning based on the actual number of lines
+          const totalTextHeight = lineSpacing * (WORD_LINES.length - 1);
+          const firstBaseY = height * 0.5 - totalTextHeight * 0.5;
+          const baseY = firstBaseY + lineIndex * lineSpacing;
+
+          const scaleX = targetWidth / origLineWidth;
+
+          let visibleIndex = 0;
+
+          for (let i = 0; i < infos.length; i++) {
+            const info = infos[i];
+            if (info.isSpace) continue;
+
+            const lc = localCenters[visibleIndex];
+            const cx = lineStartX + lc.cxLocal * scaleX;
+            const cy = baseY;
+
+            const blob = generateLetterBlob(
+              cx,
+              cy,
+              radius,
+              info.char,
+              letterIndex
+            );
+
+            blobs.push(blob);
+            blob.allParticles.forEach((p) => particles.push(p));
+            blob.allJoints.forEach((j) => distanceJoints.push(j));
+
+            letterIndex++;
+            visibleIndex++;
+          }
+        }
+      }
+
+      function draw() {
+        const mr = min(width, height) * 0.07;
+        mx = lerp(mx, mouseX, 0.25);
+        my = lerp(my, mouseY, 0.25);
+
+        const dt = 1 / 60;
+        const sdt = dt / substeps;
+
+        for (let i = particles.length; i--; ) {
+          particles[i].updateClient();
+        }
+
+        for (let sub = 0; sub < substeps; sub++) {
+          // 1. integration
+          for (let i = particles.length; i--; ) {
+            const p = particles[i];
+
+            const v = geometry.limit(
+              { x: p.vx, y: p.vy },
+              (effectiveVertexDistance / sdt) * 1.0
+            );
+            p.vx = v.x;
+            p.vy = v.y;
+
+            p.update(sdt);
+          }
+
+          // 2. joints
+          for (let i = distanceJoints.length; i--; ) {
+            distanceJoints[i].update(1);
+          }
+
+          // 3. growth + collision radius
+          for (let b = 0; b < blobs.length; b++) {
+            const blob = blobs[b];
+
+            if (blob.growing) {
+              blob.scale = Math.min(MAX_SCALE, blob.scale + GROWTH_RATE * sdt);
+            }
+
+            const rScale = blob.scale;
+            for (let i = 0; i < blob.allParticles.length; i++) {
+              const p = blob.allParticles[i];
+              p.radius = p.baseRadius * rScale;
+            }
+          }
+
+          // 4. inter-letter collisions
+          for (let i = particles.length; i--; ) {
+            const p = particles[i];
+            const neighbors = hashGrid.query(p.x, p.y, p.radius * 1.1);
+            for (let n = 0; n < neighbors.length; n++) {
+              const o = neighbors[n];
+              if (o === p || o === p.nextSibling || o === p.prevSibling)
+                continue;
+              if (o.parent === p.parent) continue;
+
+              const f = p.testCollision(o.x, o.y, o.radius);
+              if (f) {
+                const push = 0.5;
+                p.move(f.x * push, f.y * push);
+                o.move(-f.x * push, -f.y * push);
+              }
+            }
+          }
+
+          // 5. shape anchor + CLAMP (anti-spike)
+          const anchorK = 5;
+          const MAX_STRETCH = 1.05;
+
+          for (let b = 0; b < blobs.length; b++) {
+            const blob = blobs[b];
+
+            let cx = 0,
+              cy = 0;
+            for (let i = 0; i < blob.allParticles.length; i++) {
+              cx += blob.allParticles[i].x;
+              cy += blob.allParticles[i].y;
+            }
+            cx /= blob.allParticles.length;
+            cy /= blob.allParticles.length;
+            blob.cx = cx;
+            blob.cy = cy;
+
+            const s = blob.scale;
+
+            let squishSum = 0;
+            let squishCount = 0;
+
+            for (let i = 0; i < blob.allParticles.length; i++) {
+              const p = blob.allParticles[i];
+
+              const targetX = cx + p.restDX * s;
+              const targetY = cy + p.restDY * s;
+              const aw = p.anchorWeight !== undefined ? p.anchorWeight : 1.0;
+
+              const ax = (targetX - p.x) * anchorK * aw * sdt;
+              const ay = (targetY - p.y) * anchorK * aw * sdt;
+
+              p.move(ax, ay);
+
+              const dxCenter = p.x - cx;
+              const dyCenter = p.y - cy;
+              const distFromCenter = Math.hypot(dxCenter, dyCenter);
+              const restDist = Math.hypot(p.restDX * s, p.restDY * s);
+
+              if (restDist > 0 && distFromCenter > restDist * MAX_STRETCH) {
+                const ratio = (restDist * MAX_STRETCH) / distFromCenter;
+                p.x = cx + dxCenter * ratio;
+                p.y = cy + dyCenter * ratio;
+              }
+
+              const dx = p.x - targetX;
+              const dy = p.y - targetY;
+              const off = Math.hypot(dx, dy);
+
+              const idealR = Math.max(
+                1,
+                Math.hypot(p.restDX * s, p.restDY * s)
+              );
+              squishSum += off / idealR;
+              squishCount++;
+            }
+
+            const avgSquish = squishCount > 0 ? squishSum / squishCount : 0;
+
+            if (blob.growing && avgSquish >= SQUISH_FRACTION) {
+              blob.growing = false;
+            }
+          }
+
+          // 6. blob center repulsion
+          for (let i = 0; i < blobs.length; i++) {
+            for (let j = i + 1; j < blobs.length; j++) {
+              const bi = blobs[i];
+              const bj = blobs[j];
+
+              const dx = bj.cx - bi.cx;
+              const dy = bj.cy - bi.cy;
+              const distSq = dx * dx + dy * dy;
+              if (distSq < 1e-4) continue;
+
+              const minDist =
+                (bi.maxDist * bi.scale + bj.maxDist * bj.scale) * 0.55;
+              if (distSq < minDist * minDist) {
+                const dist = Math.sqrt(distSq);
+                const overlap = (minDist - dist) / dist;
+
+                const push = overlap * 0.25;
+                const ox = dx * push;
+                const oy = dy * push;
+
+                for (let k = 0; k < bi.allParticles.length; k++) {
+                  bi.allParticles[k].move(-ox, -oy);
+                }
+                for (let k = 0; k < bj.allParticles.length; k++) {
+                  bj.allParticles[k].move(ox, oy);
+                }
+              }
+            }
+          }
+
+          // 7. mouse + bounds
+          for (let i = particles.length; i--; ) {
+            const p = particles[i];
+            p.collide(mx, my, mr);
+
+            p.constrain(marginX, marginY, width - marginX, height - marginY);
+            p.endUpdate(sdt);
+          }
+        }
+
+        // draw
+        background("#c5c5c5");
+
+        push();
+        noStroke();
+        fill("#a5a5a5");
+        circle(mx, my, mr * 2 - 2);
+        pop();
+
+        for (let i = 0; i < blobs.length; i++) {
+          drawLetter(blobs[i]);
+        }
+      }
+
+      /* --------------------------------------------------------
+          Build Blob – all contours (counters separated)
+      -------------------------------------------------------- */
+
+      function generateLetterBlob(offsetX, offsetY, radius, letter, index) {
+        const fontSize = radius * 2.7;
+
+        const bounds = letterFont.textBounds(letter, 0, 0, fontSize);
+        const bx = bounds.x;
+        const by = bounds.y;
+        const bw = bounds.w;
+        const bh = bounds.h;
+
+        const rawPoints = letterFont.textToPoints(letter, 0, 0, fontSize, {
+          sampleFactor: 0.65,
+          simplifyThreshold: 0,
+        });
+
+        const allLoops = [];
+        let currentLoop = [];
+        let lastRaw = null;
+
+        const breakThreshold = effectiveVertexDistance * 8;
+
+        for (let i = 0; i < rawPoints.length; i++) {
+          const pt = rawPoints[i];
+
+          if (lastRaw) {
+            const rawD = dist(lastRaw.x, lastRaw.y, pt.x, pt.y);
+            if (rawD > breakThreshold && currentLoop.length > 0) {
+              allLoops.push(currentLoop);
+              currentLoop = [];
+            }
+          }
+          lastRaw = { x: pt.x, y: pt.y };
+
+          const px = pt.x - bx - bw * 0.5 + offsetX;
+          const py = pt.y - by - bh * 0.5 + offsetY;
+
+          const PARTICLE_COLLISION_RADIUS = effectiveVertexDistance * 0.8;
+
+          if (currentLoop.length === 0) {
+            const p = new ChainableParticle({
+              x: px,
+              y: py,
+              z: 0,
+              damping: 1,
+              friction: 0.1,
+              radius: PARTICLE_COLLISION_RADIUS,
+              mass: 1,
+            });
+            currentLoop.push(p);
+          } else {
+            const last = currentLoop[currentLoop.length - 1];
+            const d = dist(last.x, last.y, px, py);
+            if (d >= effectiveVertexDistance * 1.0) {
+              const p = new ChainableParticle({
+                x: px,
+                y: py,
+                z: 0,
+                damping: 1,
+                friction: 0.1,
+                radius: PARTICLE_COLLISION_RADIUS,
+                mass: 1,
+              });
+              currentLoop.push(p);
+            }
+          }
+        }
+        if (currentLoop.length > 0) allLoops.push(currentLoop);
+
+        const letterParticles = [];
+        const letterJoints = [];
+        const processedLoops = [];
+
+        for (let li = 0; li < allLoops.length; li++) {
+          const loop = allLoops[li];
+          if (loop.length < 3) continue;
+
+          loop.forEach((v, i, arr) => {
+            const vprev = arr[(i - 1 + arr.length) % arr.length];
+            const vnext = arr[(i + 1) % arr.length];
+
+            v.setPrevSibling(vprev);
+            v.setNextSibling(vnext);
+            if (i === 0) v.setIsRoot(true);
+            v.setClient(hashGrid.createClient(v));
+
+            v.radius = effectiveVertexDistance * 1.8;
+            v.baseRadius = v.radius;
+
+            letterParticles.push(v);
+          });
+
+          const currentLoopJoints = loop
+            .map((v) => {
+              const v2 = v.nextSibling.nextSibling || v.nextSibling;
+
+              const d1 = dist(v.x, v.y, v.nextSibling.x, v.nextSibling.y);
+              const joint1 = new DistanceJoint(
+                v,
+                v.nextSibling,
+                d1 * 1.02,
+                0.75
+              );
+
+              const d2 = dist(v.x, v.y, v2.x, v2.y);
+              const joint2 = new DistanceJoint(v, v2, d2 * 1.02, 0.3);
+
+              return [joint1, joint2];
+            })
+            .flat();
+          letterJoints.push(...currentLoopJoints);
+          processedLoops.push(loop);
+        }
+
+        const baseArea = processedLoops.reduce(
+          (sum, currentLoop) =>
+            sum + Math.abs(geometry.polygonArea(currentLoop)),
+          0
+        );
+        const area = baseArea * random(1.02, 1.08);
+
+        const palette = [
+          [22, 100, 91],
+          [40, 100, 82],
+          [48, 35, 98],
+          [58, 52, 42],
+          [50, 64, 100],
+          [320, 60, 70],
+        ];
+        const col = palette[index % palette.length];
+
+        const blob = {
+          area,
+          currentArea: area,
+          areaDiff: 0,
+          allParticles: letterParticles,
+          allJoints: letterJoints,
+          radius,
+          color: color(col[0], col[1], col[2]),
+          restCX: 0,
+          restCY: 0,
+          cx: 0,
+          cy: 0,
+          maxDist: 0,
+          scale: 1, // back to original: start at 1 and grow
+          growing: true,
+          loops: processedLoops,
+        };
+
+        let cx = 0,
+          cy = 0;
+        letterParticles.forEach((p) => {
+          cx += p.x;
+          cy += p.y;
+          p.parent = blob;
+        });
+        cx /= letterParticles.length;
+        cy /= letterParticles.length;
+        blob.restCX = cx;
+        blob.restCY = cy;
+
+        let maxDist = 0;
+        letterParticles.forEach((p) => {
+          p.restDX = p.x - cx;
+          p.restDY = p.y - cy;
+          const d = Math.sqrt(p.restDX * p.restDX + p.restDY * p.restDY);
+          if (d > maxDist) maxDist = d;
+        });
+        blob.maxDist = maxDist;
+
+        letterParticles.forEach((p) => {
+          const d =
+            maxDist > 0
+              ? Math.sqrt(p.restDX * p.restDX + p.restDY * p.restDY) / maxDist
+              : 1;
+          const t = constrain(d, 0, 1);
+
+          p.squishWeight = constrain(map(t, 0, 1, 0.7, 1.4), 0.7, 1.4);
+          p.anchorWeight = constrain(map(t, 0, 1, 1.6, 0.45), 0.45, 1.6);
+        });
+
+        return blob;
+      }
+
+      /* --------------------------------------------------------
+          Rendering – cream fill with proper counters + strokes
+      -------------------------------------------------------- */
+
+      function drawLetter(blob) {
+        if (!blob.loops || blob.loops.length === 0) return;
+
+        // 1) Build smoothed curve point sets for every contour (outer + holes)
+        const contours = [];
+
+        for (let li = 0; li < blob.loops.length; li++) {
+          const contour = blob.loops[li];
+          if (contour.length < 3) continue;
+
+          const len = contour.length;
+          let smooth = new Array(len);
+
+          // copy positions
+          for (let i = 0; i < len; i++) {
+            const p = contour[i];
+            smooth[i] = { x: p.x, y: p.y };
+          }
+
+          // smoothing passes
+          const passes = 4;
+          for (let k = 0; k < passes; k++) {
+            const tmp = new Array(len);
+            for (let i = 0; i < len; i++) {
+              const prev = smooth[(i - 1 + len) % len];
+              const curr = smooth[i];
+              const next = smooth[(i + 1) % len];
+              tmp[i] = {
+                x: (prev.x + curr.x * 2 + next.x) / 4,
+                y: (prev.y + curr.y * 2 + next.y) / 4,
+              };
+            }
+            smooth = tmp;
+          }
+
+          // wrap for curve continuity
+          const curvePts = [];
+          curvePts.push(smooth[len - 2]);
+          curvePts.push(smooth[len - 1]);
+          for (let i = 0; i < len; i++) {
+            curvePts.push(smooth[i]);
+          }
+          curvePts.push(smooth[0]);
+          curvePts.push(smooth[1]);
+
+          contours.push(curvePts);
+        }
+
+        if (contours.length === 0) return;
+
+        // 2) FILL using canvas 2D even-odd rule so counters punch out
+        const ctx = drawingContext; // p5's underlying canvas context
+        ctx.save();
+        ctx.fillStyle = "#F7E9A9"; // cream fill
+        ctx.beginPath();
+
+        contours.forEach((curvePts) => {
+          if (!curvePts.length) return;
+          ctx.moveTo(curvePts[0].x, curvePts[0].y);
+          for (let i = 1; i < curvePts.length; i++) {
+            const pt = curvePts[i];
+            ctx.lineTo(pt.x, pt.y);
+          }
+          ctx.closePath();
+        });
+
+        // key: 'evenodd' makes inner loops become holes
+        ctx.fill("evenodd");
+        ctx.restore();
+
+        // 3) STROKES
+        const drawStroke = (curvePts, sw, r, g, b) => {
+          stroke(r, g, b);
+          strokeWeight(sw);
+          strokeJoin(ROUND);
+          strokeCap(ROUND);
+          noFill();
+          beginShape();
+          for (let i = 0; i < curvePts.length; i++) {
+            const pt = curvePts[i];
+            curveVertex(pt.x, pt.y);
+          }
+          endShape();
+        };
+
+        push();
+        // outer + inner stroke, both in cream to get that fat noodle edge
+        contours.forEach((curvePts) => {
+          drawStroke(curvePts, 16, 247, 233, 169);
+          drawStroke(curvePts, 5, 247, 233, 169);
+        });
+        pop();
+      }
+    </script>
+  </body>
+</html>
