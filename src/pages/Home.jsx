@@ -11,6 +11,10 @@ export default function Home() {
   const [showPreloader, setShowPreloader] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // 1. State to track if the screen is mobile or tablet (<= 1024px)
+  const [isMobileOrTablet, setIsMobileOrTablet] = useState(false);
+
+  // 2. useEffect to handle initial scroll position
   useEffect(() => {
     if (!showPreloader && hash === "#about") {
       requestAnimationFrame(() => {
@@ -20,6 +24,28 @@ export default function Home() {
       });
     }
   }, [hash, showPreloader]);
+
+  // 3. useEffect to handle screen size check
+  useEffect(() => {
+    const checkScreenSize = () => {
+      // Set the breakpoint for mobile/tablet (e.g., up to 1024px)
+      setIsMobileOrTablet(window.innerWidth <= 1024);
+    };
+
+    // Initial check
+    checkScreenSize();
+
+    // Listen for window resize events
+    window.addEventListener("resize", checkScreenSize);
+
+    // Cleanup the event listener on component unmount
+    return () => window.removeEventListener("resize", checkScreenSize);
+  }, []);
+
+  // 4. Determine the iframe source based on screen size
+  const iframeSrc = isMobileOrTablet
+    ? "./SquishyYellowMobileHolland.html" // Source for mobile/tablet
+    : "./SquishyYellow.html"; // Source for desktop
 
   return (
     <>
@@ -33,7 +59,7 @@ export default function Home() {
             />
           </div>
 
-          {/* Blur-melt filter */}
+          {/* Blur-melt filter (SVG remains the same) */}
           <svg width="0" height="0">
             <filter id="blur-melt">
               <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur">
@@ -104,13 +130,15 @@ export default function Home() {
         </section>
 
         <section className="right-column">
+          {/* 5. Use the dynamically determined iframe source */}
           <iframe
-            src="./SquishyYellowMobileHolland.html"
+            src={iframeSrc}
             title="Squishy Letters"
             className="squishy-frame"
           ></iframe>
         </section>
 
+        {/* ... Rest of the component (menuOpen, slideout-menu, About) ... */}
         {menuOpen && (
           <div
             className="slideout-backdrop"

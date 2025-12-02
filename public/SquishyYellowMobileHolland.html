@@ -418,18 +418,17 @@
       let effectiveVertexDistance;
       let letterFont;
 
-      // --- MODIFIED SECTION START (Threshold lowered for iframes) ---
-      // Define a constant for the maximum width to show both words.
-      // Lowered to 480px to account for the iframe only reporting its own dimensions.
-      const MAX_WIDTH_FOR_HOLLAND_ONLY = 480;
-      let WORD_LINES;
+      // --- MODIFIED SECTION START ---
+      // Define a constant for the maximum width to show both words (e.g., iPad portrait is 768px)
+      const MAX_WIDTH_FOR_HOLLAND_ONLY = 768;
+      let WORD_LINES; // This will be set dynamically in buildLetters
 
       function setWordLines() {
-        // If the iframe's current width is 480px or smaller, only show HOLLAND
+        // If window is 768px or smaller, only show HOLLAND
         if (windowWidth <= MAX_WIDTH_FOR_HOLLAND_ONLY) {
           WORD_LINES = ["HOLLAND"];
         } else {
-          // Otherwise (iframe is >480px wide, likely on a desktop), show both HOLLAND and BLUMER
+          // Otherwise (larger screens), show both HOLLAND and BLUMER
           WORD_LINES = ["HOLLAND", "BLUMER"];
         }
       }
@@ -457,7 +456,7 @@
       }
 
       function buildLetters() {
-        setWordLines(); // Determine which words to show based on current iframe size
+        setWordLines(); // Determine which words to show based on current window size
 
         effectiveVertexDistance = vertexDistanceRel * min(width, height);
 

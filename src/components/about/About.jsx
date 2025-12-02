@@ -4,7 +4,6 @@ import AboutVoronoiOneShard from "./AboutVoronoiOneShard";
 export default function About() {
   return (
     <section id="about" className="about-section">
-      <AboutVoronoi />
       <div className="about-blurb">
         <p>
           Holland Blumer works at the intersection of design and technology,
