@@ -1,10 +1,10 @@
 import AboutText from "./AboutText";
+import AboutVoronoi from "./AboutVoronoi";
 
 export default function About() {
   return (
     <section id="about" className="about-section">
-      {/* RIGHT = YOUR BLURB */}
-
+      <AboutVoronoi />
       <div className="about-blurb">
         <p>
           Holland Blumer works at the intersection of design and technology,

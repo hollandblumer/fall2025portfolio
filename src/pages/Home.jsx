@@ -4,6 +4,7 @@ import ElasticMenu from "../components/nav/ElasticMenu.jsx";
 import About from "../components/about/About.jsx";
 import OverlapBlobs from "./OverlapBlobs.jsx";
 import MorphText from "../components/text/MorphText.jsx";
+import FilmGrainLayer from "../components/textures/FilmGrainLayer.jsx";
 
 export default function Home() {
   const { hash } = useLocation();
@@ -22,6 +23,7 @@ export default function Home() {
 
   return (
     <>
+      <FilmGrainLayer />
       <main className="home-container">
         <section className="left-column">
           <div className="menu-wrapper">
@@ -114,7 +116,10 @@ export default function Home() {
               </a>
             </li>
             <li>
-              <a href="#contact" onClick={() => setMenuOpen(false)}>
+              <a
+                href="mailto:hollandblumer6@icloud.com?subject=Hello&body=Hi%20Holland!"
+                onClick={() => setMenuOpen(false)}
+              >
                 Contact
               </a>
             </li>
