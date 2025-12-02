@@ -1,23 +1,105 @@
-.loading-stack {
-  position: relative;
-  z-index: 1; /* keeps it above YellowPainter */
-  width: 100%;
+/* Make the viewport actually have a height baseline */
+html,
+body,
+#root {
   height: 100%;
+  margin: 0;
+}
+
+/* Layout shells */
+.loading-page {
+  width: 100vw;
+  height: 100svh;
   display: flex;
-  flex-direction: column;
   align-items: center;
 }
-
-.loading-stack > * {
-  pointer-events: auto; /* restore interaction to the inner elements */
+.loading-hero {
+  width: 100%;
+  height: 100svh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
 }
 
-.subtitle-overlay {
-  margin-top: 18px; /* small breathing room below the main title */
-}
-
-.loading-bg {
+.loading-stack {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
+  display: grid;
+  place-items: center;
+  margin-top: 0; /* remove negative pull to avoid scroll */
+}
+
+/* Responsive vars for your subtitle */
+:root {
+  --sub-scale: 1;
+  --sub-top: calc(50% + 140px);
+}
+@media (max-width: 1024px) {
+  :root {
+    --sub-scale: 0.7;
+    --sub-top: calc(50% + 56px);
+  }
+}
+@media (max-width: 700px) {
+  :root {
+    --sub-scale: 0.44;
+    --sub-top: calc(50% + 54px);
+  }
+}
+
+/* Subtitle overlay */
+.subtitle-overlay {
   position: absolute;
+  top: var(--sub-top);
+  left: 50%;
+  transform: translateX(-50%) scale(var(--sub-scale));
+  transform-origin: top center;
+  pointer-events: none;
+}
+
+/* Preloader covers the whole viewport */
+.preloader-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  width: 100vw;
+  height: 100svh; /* more reliable on iOS than 100vh */
+  background: transparent; /* see painter through */
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.42s ease, visibility 0.42s ease;
+}
+.preloader-overlay.preloader--fade {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* The painter container and its host fill the overlay */
+.painter-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none; /* never block clicks */
+}
+.painter-host {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Optional: shard animation kept as-is */
+.shard-slice {
+  animation: shard-wiggle 2.4s ease-in-out infinite alternate;
+  will-change: transform;
+}
+@keyframes shard-wiggle {
+  0% {
+    transform: translateX(var(--tx)) skewX(var(--skew));
+  }
+  100% {
+    transform: translateX(calc(var(--tx) * -1)) skewX(var(--skew));
+  }
 }

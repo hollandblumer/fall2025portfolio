@@ -1,0 +1,256 @@
+/* MAIN LAYOUT */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@900&display=swap");
+.home-container {
+  height: 100vh; /* lock to viewport on desktop */
+  display: flex;
+  flex-direction: row;
+  background: #c5c5c5;
+  color: #3f3d3c;
+  position: relative;
+  overflow: hidden; /* kill weird scroll on desktop */
+  font-family: "Instrument Serif", serif;
+}
+
+/* LEFT COLUMN */
+.left-column {
+  flex: 1 1 50%;
+  padding: 60px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.menu-wrapper {
+  position: absolute;
+  top: 30px;
+  left: 60px;
+  width: 105px;
+  height: 50px;
+  z-index: 2000;
+}
+
+.intro-text {
+  max-width: 550px;
+  font-size: 42px;
+  line-height: 1.25;
+}
+
+.italic {
+  font-style: italic;
+}
+
+.location {
+  font-style: italic;
+}
+
+/* RIGHT COLUMN (SQUISHY) */
+.right-column {
+  flex: 1 1 50%;
+  min-height: 0; /* important: let flexbox shrink it */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.right-column canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* MOBILE STACKING */
+@media (max-width: 900px) {
+  .home-container {
+    height: auto; /* allow scroll on mobile */
+    min-height: 100vh;
+    flex-direction: column;
+    overflow-x: hidden; /* prevent sideways scroll */
+    overflow-y: auto;
+  }
+
+  .left-column {
+    order: 1;
+    padding: 30px 25px;
+  }
+
+  .menu-wrapper {
+    position: relative;
+    top: 0;
+    left: 0;
+    margin-bottom: 20px;
+  }
+
+  .right-column {
+    order: 2;
+    height: 380px; /* controlled squishy area */
+    min-height: auto;
+    margin-top: 20px;
+  }
+}
+
+html,
+body,
+#root {
+  /* Add #root if you're using React */
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  position: relative;
+}
+
+/* GLOBAL NOISE OVERLAY */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -10rem; /* shorthand for top/right/bottom/left */
+  background-image: image-set(
+    url("https://i.imgur.com/N0STPcn.png") type("image/png")
+  );
+  opacity: 0.4;
+  z-index: -1; /* behind content */
+  pointer-events: none; /* don’t block clicks */
+  animation: noise 1s steps(2) infinite;
+}
+@keyframes noise {
+  0% {
+    transform: translate3d(0, 9rem, 0);
+  }
+  50% {
+    transform: translate3d(-9rem, -4rem, 0);
+  }
+  100% {
+    transform: translate3d(-7rem, 0, 0);
+  }
+}
+.squishy-canvas-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #2c1914;
+  width: 100vw;
+  height: 100vh;
+}
+canvas {
+  touch-action: none;
+}
+
+/* Load the Inter font */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap");
+
+/* Base style for the entire paragraph block */
+.full-paragraph {
+  font-family: "Inter", sans-serif;
+  font-size: 55px;
+  font-weight: 800;
+  color: #f7e9aa;
+  text-align: left;
+  line-height: 1.2;
+  padding: 20px;
+  display: block;
+}
+
+/* 💥 NEW CLASS: Ensures the entire word stays on one line */
+.no-break-word {
+  /* THIS IS THE KEY FIX: Prevents line breaks inside this span */
+  white-space: nowrap;
+  display: inline-block; /* Ensure it respects display rules */
+  /* Add some space after the word block */
+  margin-right: 15px;
+}
+
+/* Style for each individual rotated and melted letter */
+.rotated-char {
+  /* Apply the melting filter ONLY to the rotated letters */
+  filter: url(#blur-melt);
+
+  display: inline-block;
+  /* Adjusted letter spacing */
+
+  position: relative;
+  top: 5px;
+
+  /* Correcting slant */
+  margin-left: -2px;
+  margin-right: -2px;
+  letter-spacing: -1px;
+}
+
+/* Style for non-melting words (and, based in) */
+.normal-text-style {
+  filter: none;
+  font-weight: 700;
+  letter-spacing: normal;
+  color: #a5a5a5;
+}
+
+.squishy-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  overflow: hidden;
+}
+
+.morph-title-container {
+  position: relative;
+  display: inline-block;
+  /* optional: filter: url(#morph-threshold); */
+}
+
+.morph-title-span {
+  position: absolute;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
+}
+
+.morph-title-span:first-child {
+  opacity: 0; /* starts hidden */
+}
+
+.morph-title-container {
+  position: relative;
+  display: inline-block;
+}
+
+.morph-title-span {
+  position: absolute;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
+}
+
+.morph-title-span:first-child {
+  opacity: 0; /* starts hidden, like the pen */
+}
+
+.desktop-social-icons {
+  position: absolute;
+  bottom: 60px;
+  left: 60px;
+  display: flex;
+  gap: 20px;
+  font-size: 22px;
+  color: #a5a5a5; /* dark grey */
+}
+
+.desktop-social-icons a {
+  color: #7b7979; /* dark grey */
+  text-decoration: none;
+  transition: opacity 0.25s ease;
+}
+
+.desktop-social-icons a:hover {
+  opacity: 0.6;
+}
+
+/* Hide on mobile/tablet */
+@media (max-width: 1023px) {
+  .desktop-social-icons {
+    display: none;
+  }
+}

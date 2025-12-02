@@ -1,9 +1,11 @@
 import { useEffect } from "react";
 import DiamondTitle from "../components/DiamondTitle";
 import DiamondTitle2 from "../components/DiamondTitle2";
-
+import Nav from "../components/Nav";
 import DiamondTitleFluctuate from "../components/DiamondTitleFluctuate";
 import PageStrings from "../components/PagesStrings";
+import DiamondTitleFinal from "../components/DiamondTitleFinal";
+import Nav2 from "../components/Nav2";
 
 export default function Work() {
   useEffect(() => {
@@ -35,30 +37,22 @@ export default function Work() {
 
   return (
     <main className="projects-section page">
+      <Nav2 />
       <div className="projects-header">
-        {/*   <DiamondTitleFluctuate
+        <DiamondTitleFinal
           text="WORK"
-          minW={4}
-          maxW={10}
-          periodSec={3.5}
-          holdMs={140}
-          letterSpacing={0.025}
-          fillSolid="#991a1aff"
-        /> */}
+          autoResponsive
+          desktopPx={70}
+          // tweak these to match your current global scaling
+          ipadBp={1024}
+          mobileBp={700}
+          ipadScale={0.7}
+          mobileScale={0.6}
+          autoHeight
+          heightScale={1}
+        />
 
-        <div style={{ width: "100%", maxWidth: 1000, margin: "0 auto" }}>
-          <PageStrings
-            text="work"
-            densityScale={0.9}
-            maxWordWidthFrac={0.86}
-            diamondColor="#dcd7ba"
-            stringColor="#E6C46E"
-            showStrings={false}
-            zigStrength={0.9}
-            haloRadiusPx={72}
-            haloSoftPx={22}
-          />
-        </div>
+        <div style={{ width: "100%", maxWidth: 1000, margin: "0 auto" }}></div>
 
         <div className="filter-menu">
           <button className="filter-button active">FEATURED</button>
@@ -75,17 +69,7 @@ export default function Work() {
             src="https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800"
             alt="Project 1"
           />
-          <h3 style={{ margin: 0, lineHeight: 1.4, whiteSpace: "nowrap" }}>
-            <DiamondTitle
-              text="VEVO"
-              // You tuned the look at 50px and liked it:
-              fontPx={14}
-              baselinePx={50} // keep look identical at this size
-              maxW={5}
-              letterSpacing={0.3}
-              fillSolid="#991a1aff"
-            />
-          </h3>
+          <h3 style={{ margin: 0, lineHeight: 1.4, whiteSpace: "nowrap" }}></h3>
 
           <p>
             A dynamic new visual language for the world’s leading music video
@@ -120,17 +104,7 @@ export default function Work() {
             src="https://images.unsplash.com/photo-1511765224389-37f0e77cf0eb?w=800"
             alt="Project 3"
           />
-          <h3 style={{ margin: 0, lineHeight: 1.4, whiteSpace: "nowrap" }}>
-            <DiamondTitle
-              text="VEVO"
-              // You tuned the look at 50px and liked it:
-              fontPx={24}
-              baselinePx={50} // keep look identical at this size
-              maxW={6}
-              letterSpacing={0.1}
-              fillSolid="#991a1aff"
-            />
-          </h3>
+          <h3 style={{ margin: 0, lineHeight: 1.4, whiteSpace: "nowrap" }}></h3>
           <p>
             Animated illustrations celebrating a year’s worth of music listening
             and discovery.

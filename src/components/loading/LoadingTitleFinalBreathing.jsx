@@ -2,13 +2,6 @@
 import React, { useEffect, useRef } from "react";
 import p5 from "p5";
 
-function fireTitleReady(word = "HOLLAND") {
-  if (window.__titleReadyFired) return;
-  window.__titleReadyFired = true;
-  window.dispatchEvent(
-    new CustomEvent("loading:title:ready", { detail: { word } })
-  );
-}
 export default function LoadingTitleFinal({
   className,
   style,
@@ -31,17 +24,16 @@ export default function LoadingTitleFinal({
   returnMs = 800,
 
   // Grow-into-itself: happens inside the hold window (doesn't shift morph timing)
-  // (kept exactly as-is; optional overshoot then settle back to BASE)
   growMs = 0,
-  growOvershoot = 1.6, // 1.6 = 160% of BASE width at t=0
+  growOvershoot = 1.6,
 
-  // NEW: fill smoothing
-  fillLeadMs = 250, // start narrowing diamonds this much BEFORE the morph starts
-  fillExtendMs = 200, // keep easing a touch AFTER morph ends
+  // Fill smoothing
+  fillLeadMs = 250,
+  fillExtendMs = 200,
 
   // Colors (top/bottom)
-  topColor = "#A74D00",
-  botColor = "#A74D00",
+  topColor = "#e9a80fff",
+  botColor = "#fcc23cff",
 
   // Coverage threshold
   edgeThresh = 0.05,
@@ -51,18 +43,23 @@ export default function LoadingTitleFinal({
   heightScale = 1.6,
   minHeightPx = 240,
 
-  // NEW: responsive scaling controls
-  // Breakpoints are based on the canvas/host width
-  ipadBp = 1024, // ≤ this is "iPad/tablet"
-  mobileBp = 700, // ≤ this is "mobile"
-  ipadScale = 0.7, // scale for iPad/tablet
-  mobileScale = 0.6, // scale for mobile
+  // Responsive scaling controls
+  ipadBp = 1024,
+  mobileBp = 700,
+  ipadScale = 0.7,
+  mobileScale = 0.6,
 
-  // --- NEW (optional) ---
-  // Make the *loading* diamonds "grow out" during the initial hold
-  // Defaults chosen to look natural without changing your existing usage.
-  seedGrowMs = 700, // how long the grow-out lasts, inside the hold window
-  seedGrowFrom = 0.25, // start diamond width as a fraction of BASE (0 = hairline)
+  // Seed grow (during initial hold)
+  seedGrowMs = 700,
+  seedGrowFrom = 0.25,
+
+  /* -------------------- NEW: Breathing controls -------------------- */
+  breathe = true, // enable/disable breathing overlay
+  breathWMaxDesign = 32, // design-space max width for breathing
+  breathWMinDesign = 20, // design-space min width for breathing
+  breathBlend = 0.35, // 0..1: how much to mix breathing into base width
+  breathPeriodMs = 300, // duration of a full inhale/exhale
+  breathFps = 30, // cap frame rate for battery
 }) {
   const hostRef = useRef(null);
   const p5Ref = useRef(null);
@@ -73,7 +70,7 @@ export default function LoadingTitleFinal({
 
     const sketch = (p) => {
       let TEXT_PX;
-      let firedReady = false; // to fire the "ready" event once
+      let firedReady = false;
 
       const decideTextPxBase = () => (autoResponsive ? desktopPx : textPx);
 
@@ -81,6 +78,9 @@ export default function LoadingTitleFinal({
 
       let ROW_H, COL_W, SUB_ROWS, DIAMOND_H, STAGGER;
       let BASE_MAX_W, END_MAX_W;
+
+      // Breathing (scaled per current TEXT_PX)
+      let BREATH_WMAX, BREATH_WMIN;
 
       let pgA, pgB;
       let parts = [];
@@ -97,8 +97,12 @@ export default function LoadingTitleFinal({
         DIAMOND_H = 3.2 * SCALE;
         STAGGER = true;
 
-        BASE_MAX_W = 32 * SCALE;
-        END_MAX_W = 28 * SCALE;
+        BASE_MAX_W = 32 * SCALE; // your base before fill
+        END_MAX_W = 28 * SCALE; // your filled width
+
+        // breathing bounds (independent of morph; can be wider/narrower)
+        BREATH_WMAX = breathWMaxDesign * SCALE;
+        BREATH_WMIN = breathWMinDesign * SCALE;
       };
 
       function makeBuffers() {
@@ -149,6 +153,12 @@ export default function LoadingTitleFinal({
         return m;
       }
 
+      // small deterministic hash for per-diamond phase
+      const hash2 = (x, y) => {
+        const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+        return s - Math.floor(s); // [0,1)
+      };
+
       function makeParticles() {
         parts.length = 0;
         const srcPts = [],
@@ -189,6 +199,9 @@ export default function LoadingTitleFinal({
           const wA_norm = (isClone ? s.w * 0.15 : s.w) / BASE_MAX_W;
           const wB_norm = d.w / BASE_MAX_W;
 
+          // assign a deterministic breathing phase based on target coords
+          const phase = hash2(d.x, d.y) * Math.PI * 2;
+
           parts.push({
             sx: s.x + jx,
             sy: s.y + jy,
@@ -196,6 +209,7 @@ export default function LoadingTitleFinal({
             ty: d.y,
             wA_norm,
             wB_norm,
+            phase, // for breathing
           });
         }
       }
@@ -209,14 +223,12 @@ export default function LoadingTitleFinal({
         return 1 - Math.pow(1 - t, 3);
       }
 
-      // Compute scale factor from width
       const computeScaleFactor = (w) => {
         if (w <= mobileBp) return mobileScale;
         if (w <= ipadBp) return ipadScale;
         return 1;
       };
 
-      // Resize / recompute everything
       const resizeToParent = () => {
         const el = hostRef.current;
         if (!el) return;
@@ -226,7 +238,6 @@ export default function LoadingTitleFinal({
         const scaleFactor = computeScaleFactor(w);
 
         let desiredPx = decideTextPxBase() * scaleFactor;
-
         const minHScaled = Math.max(Math.floor(minHeightPx * scaleFactor), 120);
         const targetH = autoHeight
           ? Math.max(minHScaled, Math.floor(desiredPx * heightScale))
@@ -250,7 +261,7 @@ export default function LoadingTitleFinal({
         makeBuffers();
         makeParticles();
         t0 = p.millis();
-        firedReady = false; // reset the ready flag when resizing
+        firedReady = false;
         p.loop();
       };
 
@@ -291,10 +302,17 @@ export default function LoadingTitleFinal({
         makeBuffers();
         makeParticles();
         t0 = p.millis();
+
+        p.frameRate(breathe ? breathFps : 60);
       };
 
+      // 0..1 sine easing
+      function breath01(rad) {
+        return Math.sin(rad) * 0.5 + 0.5;
+      }
+
       p.draw = () => {
-        p.clear(); // transparent
+        p.clear();
 
         const elapsed = p.millis() - t0;
 
@@ -302,19 +320,19 @@ export default function LoadingTitleFinal({
         const morphStart = holdMs;
         const morphEnd = holdMs + morphMs;
 
-        // Smooth fill window overlaps morph to remove any perceived pause
+        // fill window overlaps morph
         const fillStart = Math.max(0, morphStart - Math.max(0, fillLeadMs));
         const fillDuration = morphMs + Math.max(0, fillExtendMs);
         const fillEnd = fillStart + fillDuration;
 
-        // --- NEW: "seed grow" for the LOADING phase (grow diamonds out) ---
-        const seedWindow = Math.min(seedGrowMs, Math.max(0, holdMs)); // lives inside the hold
+        // seed-grow (inside hold)
+        const seedWindow = Math.min(seedGrowMs, Math.max(0, holdMs));
         const seedProg =
           seedWindow > 0
             ? easeOutCubic(p.constrain(elapsed / seedWindow, 0, 1))
             : 1;
 
-        // Existing grow-into-itself (optional overshoot then settle)
+        // overshoot grow (inside hold)
         const growWindow = Math.min(growMs, holdMs);
         const growProg =
           growWindow > 0
@@ -327,50 +345,38 @@ export default function LoadingTitleFinal({
           prog = easeInOut((elapsed - morphStart) / morphMs);
         if (elapsed >= morphEnd) prog = 1;
 
-        // width "fill" progress (overlaps earlier and can extend later)
+        // width fill progress
         let fillProg = 0;
         if (elapsed >= fillStart) {
           fillProg = easeInOut((elapsed - fillStart) / fillDuration);
           if (elapsed >= fillEnd) fillProg = 1;
         }
 
-        // compute max diamond width across phases
-        let maxWNow;
-
+        // base (non-breathing) max diamond width
+        let maxWBase;
         if (elapsed < fillStart) {
-          // PRE-FILL: we're showing LOADING.
-          // First: seed-grow from very thin to BASE (optionally overshoot via growMs).
-          // Compose seedGrow and growMs nicely:
+          // PRE-FILL (LOADING)
           if (seedWindow > 0) {
-            // Start from a thin fraction, grow to BASE or to overshoot if growMs is set.
             const baseStart = BASE_MAX_W * seedGrowFrom;
-
-            // If growMs is active, we do a two-part path inside growMs:
-            // - seedGrow lifts from thin -> overshoot target
-            // - then settle from overshoot -> BASE within growMs window
             if (growWindow > 0) {
               const overshootTarget = BASE_MAX_W * growOvershoot;
               const seedW = p.lerp(baseStart, overshootTarget, seedProg);
               const settleW = p.lerp(overshootTarget, BASE_MAX_W, growProg);
-              // Blend by whichever phase we’re in more: early = seed, later = settle
               const blend = Math.max(seedProg, growProg);
-              maxWNow = p.lerp(seedW, settleW, blend);
+              maxWBase = p.lerp(seedW, settleW, blend);
             } else {
-              // No overshoot: simple grow from thin -> BASE
-              maxWNow = p.lerp(baseStart, BASE_MAX_W, seedProg);
+              maxWBase = p.lerp(baseStart, BASE_MAX_W, seedProg);
             }
           } else if (growWindow > 0) {
-            // Legacy grow-into-itself path (overshoot -> settle)
-            maxWNow = p.lerp(BASE_MAX_W * growOvershoot, BASE_MAX_W, growProg);
+            maxWBase = p.lerp(BASE_MAX_W * growOvershoot, BASE_MAX_W, growProg);
           } else {
-            // Static pre-fill (fallback)
-            maxWNow = BASE_MAX_W;
+            maxWBase = BASE_MAX_W;
           }
         } else if (elapsed < fillEnd) {
-          // FILL: smoothly narrow diamonds as fill progresses (HOLLAND-like finish)
-          maxWNow = p.lerp(BASE_MAX_W, END_MAX_W, fillProg);
+          // FILL: narrow toward END_MAX_W
+          maxWBase = p.lerp(BASE_MAX_W, END_MAX_W, fillProg);
         } else {
-          // after fill finished, brief hold, then return or stop
+          // after fill
           const post = elapsed - fillEnd;
 
           if (!firedReady) {
@@ -379,28 +385,47 @@ export default function LoadingTitleFinal({
           }
 
           if (post <= postHoldMs) {
-            maxWNow = END_MAX_W;
+            maxWBase = END_MAX_W;
           } else if (post <= postHoldMs + returnMs) {
             const r = easeInOut((post - postHoldMs) / returnMs);
-            maxWNow = p.lerp(END_MAX_W, BASE_MAX_W, r);
+            maxWBase = p.lerp(END_MAX_W, BASE_MAX_W, r);
           } else {
-            maxWNow = BASE_MAX_W;
-            p.noLoop();
+            maxWBase = BASE_MAX_W;
+            // keep looping if breathe, otherwise stop
+            if (!breathe) p.noLoop();
           }
         }
 
-        const alphaNow = 255;
+        // global breathing phase
+        const basePhase =
+          (breathe ? elapsed / breathPeriodMs : 0) * Math.PI * 2;
 
         for (let i = 0; i < parts.length; i++) {
           const pr = parts[i];
+
+          // position morph
           const x = p.lerp(pr.sx, pr.tx, prog);
           const y = p.lerp(pr.sy, pr.ty, prog);
-          const w = p.lerp(pr.wA_norm, pr.wB_norm, prog) * maxWNow;
+
+          // per-diamond width morph factor (A->B)
+          const wNorm = p.lerp(pr.wA_norm, pr.wB_norm, prog);
+
+          // breathing width (independent target range 20..32 design units, scaled)
+          let wBreath = maxWBase; // fallback
+          if (breathe) {
+            const k = breath01(basePhase + pr.phase); // 0..1
+            const wTarget = p.lerp(BREATH_WMIN, BREATH_WMAX, k);
+            // mix breathing target with base max width (keeps morph logic intact)
+            const maxWFinal = p.lerp(maxWBase, wTarget, breathBlend);
+            wBreath = maxWFinal;
+          }
+
+          const w = wNorm * (breathe ? wBreath : maxWBase);
           const h = DIAMOND_H;
 
           const gy = p.constrain(y / p.height, 0, 1);
           const c = p.lerpColor(FG_TOP, FG_BOT, gy);
-          c.setAlpha(alphaNow);
+          c.setAlpha(255);
           p.fill(c);
 
           p.beginShape();
@@ -425,12 +450,8 @@ export default function LoadingTitleFinal({
     roRef.current.observe(hostRef.current);
 
     return () => {
-      if (roRef.current) {
-        roRef.current.disconnect();
-      }
-      if (p5Ref.current) {
-        p5Ref.current.remove();
-      }
+      roRef.current?.disconnect();
+      p5Ref.current?.remove();
     };
   }, [
     textPx,
@@ -458,6 +479,13 @@ export default function LoadingTitleFinal({
     mobileScale,
     seedGrowMs,
     seedGrowFrom,
+    // breathing deps
+    breathe,
+    breathWMaxDesign,
+    breathWMinDesign,
+    breathBlend,
+    breathPeriodMs,
+    breathFps,
   ]);
 
   return (

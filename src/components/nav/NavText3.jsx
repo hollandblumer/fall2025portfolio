@@ -6,7 +6,7 @@ import p5 from "p5";
  *  All “look” params are tuned at baselinePx and then scaled by (cssFontPx / baselinePx).
  */
 export default function NavText3({
-  text = "HOLLAND BLUMER",
+  text = "WORK",
 
   /** tuned-at-baseline knobs */
   letterSpacing = 0, // px at baselinePx

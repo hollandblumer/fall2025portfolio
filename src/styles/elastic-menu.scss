@@ -1,0 +1,94 @@
+.elastic-menu-button {
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* base line styling */
+.elastic-line {
+  transform-origin: 50px 50px; /* center of SVG coordinate system */
+  transition: transform 0.35s cubic-bezier(0.22, 0.61, 0.36, 1),
+    opacity 0.25s ease;
+}
+
+/* default (hamburger) state */
+.elastic-line-top {
+  /* y = 35 */
+}
+
+.elastic-line-middle {
+  /* y = 50 */
+}
+
+.elastic-line-bottom {
+  /* y = 65 */
+}
+
+/* ----- OPEN STATE: turn into X ----- */
+.elastic-line-top.is-open {
+  transform: translateY(15px) rotate(45deg);
+}
+
+.elastic-line-middle.is-open {
+  opacity: 0;
+  transform: scale(0.5);
+}
+
+.elastic-line-bottom.is-open {
+  transform: translateY(-5px) rotate(-45deg);
+}
+
+/* Slideout backdrop */
+.slideout-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.2);
+  z-index: 900;
+}
+
+.slideout-menu {
+  position: fixed;
+  top: 0;
+  left: 0; /* left side to match icon */
+  width: 100vw;
+  height: 100vh;
+  background: #2c1914;
+  color: #f7e9aa;
+  transform: translateX(-100%);
+  transition: transform 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
+  background: rgba(255, 255, 255, 0.55); /* semi-transparent white */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(18px); /* safari */
+  z-index: 999;
+  align-items: center;
+  display: flex;
+  justify-content: center;
+}
+
+.slideout-menu.open {
+  transform: translateX(0);
+}
+
+.slideout-menu ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  text-align: center;
+}
+
+.slideout-menu li + li {
+  margin-top: 18px;
+}
+
+.slideout-menu a {
+  text-decoration: none;
+  color: inherit;
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
+  font-size: 28px;
+}

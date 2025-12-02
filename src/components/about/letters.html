@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>
+      Letter Field — Actual Characters (No Subrows, Same-Letter Halo)
+    </title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #000;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+      import * as THREE from 'https://unpkg.com/three@0.128.0/build/three.module.js';
+      import { FontLoader } from 'https://unpkg.com/three@0.128.0/examples/jsm/loaders/FontLoader.js';
+      import { TextGeometry } from 'https://unpkg.com/three@0.128.0/examples/jsm/geometries/TextGeometry.js';
+
+      class App {
+        constructor() {
+          /* ===== timing ===== */
+          this.TEMPO=3.5;
+          this.ATTACK_BASE=1.20;
+          this.ATTACK=this.ATTACK_BASE*this.TEMPO;
+          this.RELEASE=this.ATTACK;
+          this.PERIOD=this.ATTACK+this.RELEASE;
+          this.FLOW_NOISE   = 0.24;
+          this.TRI_SOFTNESS = 0.88;
+
+          /* ===== lattice (no subrows) ===== */
+          this.SUB_ROWS   = 1;
+          this.STAGGER    = true;
+
+          /* spacing per cell (world units) */
+          this.COL_W      = 16;
+          this.ROW_H      = 5.2;
+
+          /* glyph footprint envelope per cell */
+          this.DIAMOND_H  = 2.8;   // logical cell height (fit height)
+          this.MAX_W      = 12;    // logical cell width (fit width)
+
+          /* packing & edge softening */
+          this.HARD_GAP_X = 0.08;
+          this.HARD_GAP_Y = 0.06;
+          this.FADE_EDGE  = 0.10;
+
+          /* grid size (reduce if slow) */
+          this.GRID_COLS = 64;
+          this.GRID_ROWS = 144;
+
+          /* glyph mesh style */
+          this.GLYPH_SIZE   = 100;     // TextGeometry font size (arbitrary—scaled to cell)
+          this.GLYPH_DEPTH  = 1.05;    // extrusion depth
+          this.GLYPH_BEVEL  = 0.12;    // 0..0.3 looks nice
+          this.CURVE_SEGS   = 4;
+
+          /* color (flat white) */
+          this.TOP_COLOR  = new THREE.Color("#ffffff");
+          this.BOT_COLOR  = new THREE.Color("#ffffff");
+
+          /* pulse width caps */
+          this.W_TEXT_MAX = 1.60;
+          this.W_HALO_MAX = 1.10;
+
+          /* halo shaping */
+          this.HALO_PX=46;
+          this.HALO_T0=6;
+          this.WAVE_SPEED_BASE=140;
+          this.WAVE_SPEED_PX_PER_S=(this.WAVE_SPEED_BASE/this.TEMPO)*0.95;
+          this.HALO_DELAY_MULT=1.65;
+          this.HALO_DELAY_GAMMA=1.10;
+          this.HALO_BASE_OFFSET=0.06*this.ATTACK;
+
+          /* TEXT */
+          this.LINES = ['CCNYC','NOV 11','6–8PM','PIER 57'];
+          this.LINE_GAP_MULT = 1.20;
+          this.MAX_W_PAD_X = 0.90;
+          this.MAX_H_PAD_Y = 0.72;
+
+          /* scene */
+          this.camera=new THREE.PerspectiveCamera(60,1,0.1,5000);
+          this.scene=new THREE.Scene();
+          this.renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+          this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+          this.renderer.setSize(innerWidth,innerHeight);
+          this.renderer.outputEncoding=THREE.sRGBEncoding;
+          this.renderer.setClearColor(0x000000,1);
+          document.body.appendChild(this.renderer.domElement);
+
+          /* offscreen canvases: text, blur, per-character id map */
+          this.tcanvas=document.createElement('canvas'); this.tctx=this.tcanvas.getContext('2d',{willReadFrequently:true});
+          this.bcanvas=document.createElement('canvas'); this.bctx=this.bcanvas.getContext('2d',{willReadFrequently:true});
+          this.ccanvas=document.createElement('canvas'); this.cctx=this.ccanvas.getContext('2d',{willReadFrequently:true});
+
+          this.addLights();
+
+          new FontLoader().load(
+            'https://unpkg.com/three@0.128.0/examples/fonts/helvetiker_bold.typeface.json',
+            (font)=>{ this.font=font; this.initAfterFont(); }
+          );
+
+          addEventListener('resize',()=>{ this.onResize(); });
+          addEventListener('click',()=> this.t0 = performance.now());
+        }
+
+        addLights(){
+          const amb=new THREE.AmbientLight(0xffffff,0.9);
+          const key=new THREE.DirectionalLight(0xffffff,0.7);
+          key.position.set(300,260,420);
+          const rim=new THREE.DirectionalLight(0xffffff,0.35);
+          rim.position.set(-240,-180,260);
+          this.scene.add(amb,key,rim);
+        }
+
+        initAfterFont(){
+          const mask=this.prepareMultiLineMask(this.LINES);
+          this.fixedW=mask.textImg.width; this.fixedH=mask.textImg.height;
+          this.asset=mask;
+
+          // Build glyph geometries for *actual distinct characters* present
+          const distinct = new Set(mask.allChars); // includes digits, dash, etc.
+          this.glyphGeo = {};
+          this.glyphBBox = {};
+          for(const ch of distinct){
+            const geom = this.makeGlyphGeometry(ch);
+            this.glyphGeo[ch]  = geom.geo;
+            this.glyphBBox[ch] = geom.bb;
+          }
+
+          this.buildField();
+          this.fitCamera();
+          this.onResize();
+          this.t0=performance.now();
+          this.render();
+        }
+
+        makeGlyphGeometry(ch){
+          // some fonts (helvetiker) don’t include all unicode; fallback to '-'
+          let charForGeo = ch;
+          try {
+            // if TextGeometry fails on exotic char, we'll catch below
+            const geo = new TextGeometry(charForGeo, {
+              font:this.font, size:this.GLYPH_SIZE, height:this.GLYPH_DEPTH,
+              curveSegments:this.CURVE_SEGS,
+              bevelEnabled:true,
+              bevelThickness:this.GLYPH_DEPTH*this.GLYPH_BEVEL,
+              bevelSize:(this.GLYPH_SIZE*0.12)*this.GLYPH_BEVEL,
+              bevelOffset:0
+            });
+            geo.computeBoundingBox();
+            return { geo, bb: geo.boundingBox.clone() };
+          } catch(e){
+            const fallback = new TextGeometry('-', {
+              font:this.font, size:this.GLYPH_SIZE, height:this.GLYPH_DEPTH,
+              curveSegments:this.CURVE_SEGS,
+              bevelEnabled:true,
+              bevelThickness:this.GLYPH_DEPTH*this.GLYPH_BEVEL,
+              bevelSize:(this.GLYPH_SIZE*0.12)*this.GLYPH_BEVEL,
+              bevelOffset:0
+            });
+            fallback.computeBoundingBox();
+            return { geo:fallback, bb:fallback.boundingBox.clone() };
+          }
+        }
+
+        /* ===== text/halo/labels prep ===== */
+        prepareMultiLineMask(lines){
+          const ctx=this.tctx,bctx=this.bctx,cx=this.cctx;
+          const baseW=1600, baseH=900, S=Math.max(baseW,baseH);
+
+          this.tcanvas.width=S; this.tcanvas.height=S;
+          this.bcanvas.width=S; this.bcanvas.height=S;
+          this.ccanvas.width=S; this.ccanvas.height=S;
+
+          const measure = (size)=>{
+            ctx.save();
+            ctx.font=`700 ${size}px 'Kumbh Sans', sans-serif`;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            const gap = size * this.LINE_GAP_MULT;
+            let widths=[]; let maxW=0;
+            for(const line of lines){ const w=ctx.measureText(line).width; widths.push(w); maxW=Math.max(maxW,w); }
+            const totalH = size + gap*(lines.length-1);
+            ctx.restore();
+            return {widths,maxW,totalH,gap};
+          };
+
+          // binary search for largest size that fits
+          let lo=8, hi=420, best=lo, packBest=null;
+          while (lo<=hi){
+            const mid = (lo+hi)>>1;
+            const p = measure(mid);
+            const fitsW = p.maxW <= S*this.MAX_W_PAD_X;
+            const fitsH = p.totalH <= S*this.MAX_H_PAD_Y;
+            if (fitsW && fitsH){ best=mid; packBest=p; lo=mid+1; } else { hi=mid-1; }
+          }
+          const size = best;
+          const pack = packBest || measure(size);
+          const {widths,totalH,gap} = pack;
+
+          const cx0 = S/2;
+          const cy0 = S/2;
+          const startY = cy0 - totalH/2;
+
+          // TEXT bitmap (white on black)
+          ctx.clearRect(0,0,S,S);
+          ctx.fillStyle='#000'; ctx.fillRect(0,0,S,S);
+          ctx.save(); ctx.translate(S/2,S/2); ctx.scale(1,-1); ctx.translate(-S/2,-S/2);
+          ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.font=`700 ${size}px 'Kumbh Sans', sans-serif`;
+          for(let i=0;i<lines.length;i++){
+            const y = startY + i*gap + size/2;
+            ctx.fillText(lines[i], cx0, y);
+          }
+          ctx.restore();
+          const textImg=ctx.getImageData(0,0,S,S);
+
+          // HALO blur
+          bctx.clearRect(0,0,S,S);
+          bctx.fillStyle='#000'; bctx.fillRect(0,0,S,S);
+          bctx.filter=`blur(${this.HALO_PX}px)`;
+          bctx.drawImage(this.tcanvas,0,0);
+          bctx.filter='none';
+          const blurImg=bctx.getImageData(0,0,S,S);
+
+          // PER-CHARACTER label map + centers per character (for nearest-char halo)
+          const idToChar = [];
+          const idToCenter = []; // [{x,y,lineIndex}]
+          const allChars = [];
+          cx.clearRect(0,0,S,S);
+          cx.fillStyle='#000'; cx.fillRect(0,0,S,S);
+          cx.save(); cx.translate(S/2,S/2); cx.scale(1,-1); cx.translate(-S/2,-S/2);
+          cx.textAlign='left'; cx.textBaseline='alphabetic';
+          cx.font=`700 ${size}px 'Kumbh Sans', sans-serif';
+
+          let id=1;
+          for(let li=0; li<lines.length; li++){
+            const line=lines[li];
+            const yBaseline = startY + li*gap + size*0.8; // baseline-ish
+            const totalW = widths[li];
+            let x = cx0 - totalW/2;
+            for(let ci=0; ci<line.length; ci++){
+              const ch=line[ci];
+              const w = cx.measureText(ch).width;
+              if(ch !== ' '){
+                cx.fillStyle=`rgba(${id},0,0,1)`;
+                cx.fillText(ch, x, yBaseline);
+                idToChar[id]=ch;
+                allChars.push(ch);
+                // approximate center of the drawn glyph in pixels
+                idToCenter[id] = { x: x + w*0.5, y: yBaseline - size*0.45, line: li };
+                id = Math.min(254, id+1);
+              }
+              x += w;
+            }
+          }
+          cx.restore();
+          const charIdImg = cx.getImageData(0,0,S,S);
+
+          // EDGE pixels for distance
+          const edgePts=[];
+          const data=textImg.data, W=S, H=S;
+          for(let y=1;y<H-1;y++){
+            for(let x=1;x<W-1;x++){
+              const i=4*(y*W+x);
+              if(data[i]>128){
+                const aL=data[4*(y*W+x-1)], aR=data[4*(y*W+x+1)];
+                const aU=data[4*((y-1)*W+x)], aD=data[4*((y+1)*W+x)];
+                if(aL<=128||aR<=128||aU<=128||aD<=128) edgePts.push([x,y]);
+              }
+            }
+          }
+
+          return {textImg, blurImg, edgePts, charIdImg, idToChar, idToCenter, sizePx:size, allChars};
+        }
+
+        sampleRed(img,x,y){
+          const W=img.width,H=img.height;
+          if(x<0||y<0||x>=W||y>=H) return 0;
+          return img.data[4*(y*W+x)];
+        }
+        sampleRedMax3x3(img,x,y){
+          const W=img.width,H=img.height, data=img.data; let m=0;
+          for(let oy=-1;oy<=1;oy++){
+            const yy=Math.max(0,Math.min(H-1,(y|0)+oy));
+            for(let ox=-1;ox<=1;ox++){
+              const xx=Math.max(0,Math.min(W-1,(x|0)+ox));
+              const r=data[4*(yy*W+xx)];
+              if(r>m) m=r;
+            }
+          }
+          return m;
+        }
+        distToSet(points,gx,gy){
+          let d2=Infinity;
+          for(let k=0;k<points.length;k++){
+            const dx=gx-points[k][0], dy=gy-points[k][1];
+            const dd=dx*dx+dy*dy; if(dd<d2){d2=dd; if(d2<=1)break;}
+          }
+          return Math.sqrt(d2);
+        }
+        _hash01(a,b,c){ let h=2166136261>>>0; h^=a; h=Math.imul(h,16777619); h^=b; h=Math.imul(h,16777619); h^=c; h=Math.imul(h,16777619); return (h>>>0)/4294967295; }
+
+        /* nearest actual character (by center) for halo pixels */
+        nearestCharByCenter(px, py){
+          const centers = this.asset.idToCenter;
+          let bestId = 0, bestD2 = Infinity;
+          for(let id=1; id<centers.length; id++){
+            const c = centers[id]; if(!c) continue;
+            const dx = px - c.x, dy = py - c.y;
+            const d2 = dx*dx + dy*dy;
+            if(d2 < bestD2){ bestD2 = d2; bestId = id; }
+          }
+          return bestId;
+        }
+
+        /* build data + instanced meshes (one per actual char) */
+        buildField(){
+          if(this.fieldGroup){ this.scene.remove(this.fieldGroup); }
+          this.fieldGroup = new THREE.Group();
+          this.scene.add(this.fieldGroup);
+
+          const W=this.fixedW, H=this.fixedH, COLS=this.GRID_COLS, ROWS=this.GRID_ROWS, a=this.asset;
+          const colPitch=this.COL_W, rowPitch=this.ROW_H;
+          const halfCols=(COLS-1)/2, halfRows=(ROWS-1)/2;
+          const pxPerCol = W / COLS;
+          const edgeDxPx = 0.4 * pxPerCol;
+
+          // buckets per *actual character*
+          const buckets = new Map(); // char -> item[]
+          const ensureBucket = (ch)=>{ if(!buckets.has(ch)) buckets.set(ch, []); return buckets.get(ch); };
+
+          let maxDist=1;
+
+          for(let j=0;j<ROWS;j++){
+            const odd = this.STAGGER && (j%2===1);
+            for(let i=0;i<COLS;i++){
+              const gx = Math.floor((i + (odd?0.5:0)) / COLS * W);
+              const gy = Math.floor(j / ROWS * H);
+
+              const rText = this.sampleRed(a.textImg,gx,gy);
+              const rHalo = this.sampleRed(a.blurImg,gx,gy);
+              let tag = 0;               // 0=skip,1=text,2=halo
+              if(rText>128) tag=1; else if(rHalo>this.HALO_T0) tag=2;
+              if(tag===0) continue;
+
+              let ch = ' ';
+              if(tag===1){
+                // exact character under the pixel
+                const idR = this.sampleRed(a.charIdImg,gx,gy)|0;
+                ch = (a.idToChar[idR] || ' ');
+              } else {
+                // halo: pick nearest character center
+                const nid = this.nearestCharByCenter(gx, gy);
+                ch = (a.idToChar[nid] || ' ');
+              }
+              // ignore spaces
+              if(ch === ' ') continue;
+              // skip if we don't have geometry (rare)
+              if(!this.glyphGeo[ch]) {
+                // build on-the-fly if a new char appears (e.g., due to halo choosing it)
+                const geom = this.makeGlyphGeometry(ch);
+                this.glyphGeo[ch]  = geom.geo;
+                this.glyphBBox[ch] = geom.bb;
+              }
+
+              const px = ( (i - halfCols) + (odd?0.5:0) ) * colPitch;
+              const py = ( (j - halfRows) * rowPitch );
+
+              const d = this.distToSet(a.edgePts, gx, gy);
+              if(d>maxDist) maxDist=d;
+
+              const a0 = this.sampleRedMax3x3(a.textImg,gx,gy);
+              const aL = this.sampleRedMax3x3(a.textImg, gx - edgeDxPx, gy);
+              const aR = this.sampleRedMax3x3(a.textImg, gx + edgeDxPx, gy);
+              const edgeFactor = 1 - (this.FADE_EDGE*(Math.abs(a0 - aL) + Math.abs(a0 - aR))) / (255*2);
+
+              const gy01 = (py - (-halfRows*rowPitch)) / ((halfRows*rowPitch) - (-halfRows*rowPitch));
+              const rnd = this._hash01(i,j,0);
+
+              ensureBucket(ch).push({
+                px, py, tag, edgeFactor, distPx: d, gy01, rnd
+              });
+            }
+          }
+
+          this.instances = [];
+          const targetW = this.MAX_W * (1 - this.HARD_GAP_X);
+          const targetH = this.DIAMOND_H * (1 - this.HARD_GAP_Y);
+
+          for(const [ch,items] of buckets.entries()){
+            if(items.length===0) continue;
+
+            const mat = new THREE.MeshStandardMaterial({
+              color: this.TOP_COLOR.clone(), emissive:0x000000, metalness:0.0, roughness:0.95, flatShading:true
+            });
+
+            const geo = this.glyphGeo[ch];
+            const mesh = new THREE.InstancedMesh(geo, mat, items.length);
+            mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+            this.fieldGroup.add(mesh);
+
+            const bb = this.glyphBBox[ch];
+            const gw = (bb.max.x - bb.min.x);
+            const gh = (bb.max.y - bb.min.y);
+            const baseSx = targetW / gw;
+            const baseSy = targetH / gh;
+
+            this.instances.push({ ch, mesh, items, baseSx, baseSy });
+          }
+
+          this.maxDist = Math.max(1, maxDist);
+        }
+
+        fitCamera(){
+          const box = new THREE.Box3().setFromObject(this.fieldGroup);
+          const size = box.getSize(new THREE.Vector3());
+          const center = box.getCenter(new THREE.Vector3());
+          const rendererSize = this.renderer.getSize(new THREE.Vector2());
+          const aspect = rendererSize.x / rendererSize.y;
+
+          const w = Math.max(1e-3, size.x);
+          const h = Math.max(1e-3, size.y);
+
+          const fov = THREE.MathUtils.degToRad(this.camera.fov);
+          const pad = 1.18;
+
+          const zByH = (h * 0.5) / Math.tan(fov * 0.5);
+          const zByW = (w * 0.5) / (Math.tan(fov * 0.5) * aspect);
+          const z = Math.max(zByH, zByW) * pad;
+
+          this.camera.position.set(center.x, center.y, z);
+          this.camera.near = Math.max(0.1, z - Math.max(w, h) * 2);
+          this.camera.far  = z + Math.max(w, h) * 4;
+          this.camera.lookAt(center);
+          this.camera.updateProjectionMatrix();
+        }
+
+        onResize(){
+          const w=innerWidth,h=innerHeight;
+          this.camera.aspect=w/h;
+          this.camera.updateProjectionMatrix();
+          this.renderer.setSize(w,h);
+        }
+
+        triangle01(x){
+          const t = x - Math.floor(x); // 0..1
+          return 1 - 2*Math.abs(t - 0.5); // 0..1..0
+        }
+
+        render(){
+          requestAnimationFrame(()=>this.render());
+          if(!this.instances) return;
+          const now=performance.now(), tsec=(now - (this.t0||now))/1000;
+          const T=this.PERIOD;
+
+          const xCap = (this.COL_W * (1 - this.HARD_GAP_X)) / this.MAX_W;
+          const tmp = new THREE.Object3D();
+
+          for(const pack of this.instances){
+            const { mesh, items, baseSx, baseSy } = pack;
+            for(let idx=0; idx<items.length; idx++){
+              const it = items[idx];
+              const phaseBase = (Math.pow(it.distPx,this.HALO_DELAY_GAMMA)/this.WAVE_SPEED_PX_PER_S)*this.HALO_DELAY_MULT + this.HALO_BASE_OFFSET;
+              const phaseLag  = phaseBase + Math.min(1, it.distPx/this.maxDist) * 0.40 * T + this.FLOW_NOISE*(it.rnd-0.5);
+              const phase = ((tsec - phaseLag) / T) % 1;
+
+              let tri = this.triangle01(phase);
+              tri = Math.pow(Math.max(0,tri), this.TRI_SOFTNESS);
+
+              const amp = (it.tag===1 ? this.W_TEXT_MAX : this.W_HALO_MAX) * Math.max(0, it.edgeFactor);
+              const xScale = Math.min(amp * tri, xCap * (it.tag===2 ? 0.98 : 1.02));
+
+              const yS = 1 - 0.10 * Math.min(1, Math.max(0, (xScale - 0.8*xCap) / (0.2*xCap)));
+              const zS = 1.0 + 0.18 * xScale;
+
+              tmp.position.set(it.px, it.py, 0);
+              tmp.rotation.set(0,0,0);
+              tmp.scale.set( Math.max(0.0001, baseSx * xScale), baseSy * yS, zS );
+              tmp.updateMatrix();
+              mesh.setMatrixAt(idx, tmp.matrix);
+            }
+            mesh.instanceMatrix.needsUpdate = true;
+          }
+
+          this.renderer.render(this.scene,this.camera);
+        }
+      }
+
+      /* boot */
+      new App();
+    </script>
+  </body>
+</html>

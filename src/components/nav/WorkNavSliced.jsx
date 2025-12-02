@@ -1,11 +1,11 @@
 // HeroNavSliced.jsx
 import React, { useMemo } from "react";
 
-export default function HeroNavSliced({
+export default function WorkNavSliced({
   text = "CONTACT",
   rows = 3,
-  fontSizePx = 50,
-  color = "#050505ff",
+  fontSizePx = 30,
+  color = "#f65c2e",
   direction = "left", // "left" | "right"
   skewDegAbs = 1.5,
   offsetsPx = [-0.4, 0.25, -0.2],

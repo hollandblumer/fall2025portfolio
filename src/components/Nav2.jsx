@@ -1,5 +1,6 @@
+import React from "react";
 import { NavLink } from "react-router-dom";
-import NavText3 from "./nav/NavText3";
+import WorkNavSliced from "./nav/HeroNavSliced";
 
 const link = (isActive) => `hammer-link ${isActive ? "active" : ""}`;
 
@@ -12,17 +13,9 @@ export default function Nav({}) {
           className="nav-item"
           style={{
             display: "inline-block",
-            minWidth: "10ch",
-            fontSize: "30px", // <-- real CSS font size
           }}
         >
-          <NavText3
-            text="ABOUT"
-            letterSpacing={10}
-            baselinePx={60}
-            fitToCssFont
-            tightPadPx={30}
-          />
+          <WorkNavSliced text="about" letterSpacing={0} tightPadPx={30} />
         </div>
       </NavLink>
 
@@ -31,17 +24,9 @@ export default function Nav({}) {
           className="nav-item"
           style={{
             display: "inline-block",
-            minWidth: "10ch",
-            fontSize: "30px", // <-- real CSS font size
           }}
         >
-          <NavText3
-            text="WORK"
-            letterSpacing={10}
-            baselinePx={60}
-            fitToCssFont
-            tightPadPx={30}
-          />
+          <WorkNavSliced text="work" letterSpacing={0} baselinePx={60} />
         </div>
       </NavLink>
 
@@ -50,17 +35,9 @@ export default function Nav({}) {
           className="nav-item"
           style={{
             display: "inline-block",
-            minWidth: "10ch",
-            fontSize: "30px", // <-- real CSS font size
           }}
         >
-          <NavText3
-            text="CONTACT"
-            letterSpacing={10}
-            baselinePx={60}
-            fitToCssFont
-            tightPadPx={30}
-          />
+          <WorkNavSliced text="contact" letterSpacing={0} baselinePx={60} />
         </div>
       </NavLink>
 
@@ -69,17 +46,9 @@ export default function Nav({}) {
           className="nav-item"
           style={{
             display: "inline-block",
-            minWidth: "10ch",
-            fontSize: "30px", // <-- real CSS font size
           }}
         >
-          <NavText3
-            text="SOCIAL"
-            letterSpacing={10}
-            baselinePx={60}
-            fitToCssFont
-            tightPadPx={30}
-          />
+          <WorkNavSliced text="social" letterSpacing={0} baselinePx={60} />
         </div>
       </NavLink>
     </nav>

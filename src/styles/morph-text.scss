@@ -1,0 +1,27 @@
+.morph-text {
+  position: relative;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* Invisible width holder */
+.morph-sizer {
+  visibility: hidden;
+  white-space: nowrap;
+}
+
+/* Actual morphing layers, stacked on top */
+.morph-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: nowrap;
+  display: inline-block;
+  user-select: none;
+}
+
+/* Optional styling for the words themselves */
+.morph-word {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}

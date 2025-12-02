@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Collwick — About + Core Values</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&family=IBM+Plex+Sans:wght@400;500&family=Saira:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      :root {
+        --section-space: 60px;
+        --block-space: 24px;
+        --shade1: #cbe3f6;
+        --shade2: #a9cdee;
+        --shade3: #87b7e1;
+        --shade4: #6aa0cf;
+        --gap: 16px;
+        --border: #b8ccdd;
+        --divider: #e2e8f0;
+      }
+
+      body,
+      main,
+      .cw-page {
+        margin: 0;
+        padding: 0;
+      }
+
+      .cw-section {
+        margin: 0 0 var(--section-space);
+        padding: 0;
+        display: grid;
+        row-gap: var(--block-space);
+      }
+
+      .cw-section h4,
+      .cw-section p {
+        margin: 0;
+        padding: 0;
+      }
+
+      .cw-heading {
+        text-transform: uppercase;
+      }
+
+      .cw-section:first-of-type {
+        margin-top: var(--section-space);
+      }
+
+      .cw-body {
+        text-align: justify;
+        text-justify: inter-word;
+      }
+
+      /* Core Values Styling */
+      .cw-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: var(--gap);
+      }
+
+      @media (max-width: 1024px) {
+        .cw-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 600px) {
+        .cw-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* Center section headings below iPad width */
+      @media (max-width: 820px) {
+        .cw-heading {
+          text-align: center;
+          margin-left: auto; /* in case the h4 has a fixed/max width */
+          margin-right: auto;
+          /* optional if the section uses CSS grid and the h4 isn't full-width */
+          justify-self: center;
+        }
+      }
+
+      .cw-card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        height: 200px;
+        padding: 10px;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        justify-items: center;
+        will-change: transform, opacity;
+      }
+
+      .cw-card-heading {
+        color: white;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        padding-top: 20px;
+      }
+
+      @media (max-width: 1024px) {
+        .cw-card-heading {
+          padding-top: 0px;
+        }
+      }
+
+      .cw-card h3 {
+        margin: 0;
+        font-size: 16px;
+        line-height: 1.2;
+        flex: 0 0 auto;
+      }
+
+      .cw-img {
+        max-height: 80px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        min-height: 0;
+      }
+
+      .icon-integrity {
+        transform: scale(1.25); /* smaller */
+
+        margin-top: -10px;
+        margin-left: -2px;
+      }
+
+      .icon-alignment {
+        transform: scale(1.1); /* larger */
+      }
+
+      .icon-communication {
+        transform: scale(1.05); /* slightly larger */
+      }
+
+      .icon-excellence {
+        transform: scale(1.2); /* slightly smaller */
+      }
+
+      .cw-text {
+        align-self: start;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        text-align: center;
+        color: white;
+      }
+
+      .cw-card:nth-child(1) {
+        background: var(--shade1);
+      }
+      .cw-card:nth-child(2) {
+        background: var(--shade2);
+      }
+      .cw-card:nth-child(3) {
+        background: var(--shade3);
+      }
+      .cw-card:nth-child(4) {
+        background: var(--shade4);
+      }
+
+      /* === NEW: Desktop hover swap === */
+      /* === Desktop: fade-swap without movement === */
+      @media (min-width: 1025px) and (hover: hover) and (pointer: fine) {
+        /* put the heading in row 1, and stack img/text in row 2 */
+        .cw-card {
+          position: relative;
+          display: grid;
+          grid-template-rows: auto 1fr auto;
+        }
+        .cw-card h3 {
+          grid-row: 1;
+        }
+
+        /* stack both in the SAME grid cell and center them */
+        .cw-img,
+        .cw-text {
+          grid-row: 2; /* middle row */
+          grid-column: 1; /* same column */
+          justify-self: center;
+          align-self: center; /* override earlier align-self:start on .cw-text */
+          transition: opacity 0.25s ease, visibility 0.25s ease;
+        }
+
+        /* start: show icon, hide text */
+        .cw-img {
+          opacity: 1;
+          visibility: visible;
+        }
+        .cw-text {
+          opacity: 0;
+          visibility: hidden;
+        }
+
+        /* hover/focus: fade icon out, text in (no layout shift) */
+        .cw-card:hover .cw-img,
+        .cw-card:focus-within .cw-img {
+          opacity: 0;
+          visibility: hidden;
+        }
+        .cw-card:hover .cw-text,
+        .cw-card:focus-within .cw-text {
+          opacity: 1;
+          visibility: visible;
+        }
+      }
+
+      /* Optional: make sure the non-desktop base style doesn't fight us */
+      .cw-text {
+        /* remove this if you had it earlier: align-self: start; */
+        align-self: center;
+      }
+
+      /* Core value cards floating animation */
+      .cw-card.is-reveal {
+        opacity: 0;
+        transform: translateX(48px);
+        transition: transform 700ms cubic-bezier(0.2, 0.7, 0.2, 1),
+          opacity 700ms cubic-bezier(0.2, 0.7, 0.2, 1);
+        transition-delay: var(--stagger, 0ms);
+      }
+
+      .cw-card.is-reveal.in-view {
+        opacity: 1;
+        transform: translateX(0);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .cw-card.is-reveal {
+          transform: none;
+          transition: opacity 200ms linear;
+        }
+      }
+
+      /* Distinguishing Characteristics Tabs */
+      .cw-tabs-wrap {
+        display: grid;
+        grid-template-columns: var(--tabs-col, 480px) minmax(0, 1fr);
+        border: 1px solid var(--border);
+      }
+
+      .cw-tabs {
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid var(--border);
+      }
+
+      .cw-tab-panel {
+        background: var(--shade1);
+      }
+
+      .cw-tab-mobile-panel {
+        display: none;
+      }
+
+      .cw-tab {
+        flex: 1 1 0;
+        display: flex;
+        align-items: center;
+        padding: 18px 20px;
+        padding-right: 36px;
+        border: 0;
+        background: #fff;
+        cursor: pointer;
+        position: relative;
+        justify-content: space-between;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+      }
+
+      .cw-tab-label {
+        display: inline-block;
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        color: #0f2433;
+        user-select: none;
+        font-family: "Saira";
+        font-weight: 500;
+      }
+
+      .cw-tab::after {
+        content: "";
+        display: none;
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 18px;
+        opacity: 0.9;
+        -webkit-tap-highlight-color: transparent;
+        color: #0f2433 !important; /* or whatever text color you want */
+      }
+
+      .cw-tab[data-key="performance"],
+      .cw-tab-card[data-key="performance"] {
+        background: var(--shade1);
+      }
+      .cw-tab[data-key="process"],
+      .cw-tab-card[data-key="process"] {
+        background: var(--shade2);
+      }
+      .cw-tab[data-key="team"],
+      .cw-tab-card[data-key="team"] {
+        background: var(--shade3);
+      }
+
+      .cw-tab-card {
+        display: none;
+      }
+      .cw-tab-card__inner {
+        padding: 40px 46px;
+      }
+      .cw-tab-card p {
+        margin: 0;
+        color: #fff;
+        font: 400 22px/1.5 Saira, system-ui, sans-serif;
+      }
+
+      .cw-tab-card__inner p {
+        font: 400 15px/1.5 Saira, system-ui, sans-serif;
+        text-align: justify;
+        line-height: 1.6;
+      }
+
+      .cw-tabs-wrap.stack {
+        display: block;
+      }
+      .cw-tabs-wrap.stack .cw-tabs {
+        border-bottom: 1px solid var(--divider);
+        border-right: 0;
+      }
+      .cw-tabs-wrap.stack .cw-tab {
+        border-bottom: 1px solid var(--divider);
+        flex: none;
+      }
+      .cw-tabs-wrap.stack .cw-tab-label {
+        white-space: normal;
+      }
+      .cw-tabs-wrap.stack .cw-tab-panel {
+        display: none;
+      }
+      .cw-tabs-wrap.stack .cw-tab-mobile-panel {
+        display: block;
+      }
+
+      .cw-tabs-wrap.stack .cw-tab::after {
+        display: block;
+        content: "▸";
+      }
+      .cw-tabs-wrap.stack .cw-tab.is-active::after {
+        content: "▾";
+      }
+
+      .cw-tabs-wrap:not(.stack) .cw-tab.is-active::after {
+        display: block;
+        content: "▸";
+      }
+
+      #distinguishing-characteristics.cw-section {
+        --section-space: 0;
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+      }
+
+      @media (max-width: 820px) {
+        #distinguishing-characteristics .cw-tabs-wrap.stack {
+          margin-bottom: 0 !important;
+        }
+        #distinguishing-characteristics .cw-tabs {
+          margin-bottom: 0 !important;
+          border-bottom: 0 !important;
+        }
+        #distinguishing-characteristics .cw-tab:last-child {
+          border-bottom: 0 !important;
+        }
+        #distinguishing-characteristics #cw-tab-mobile-panel {
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+      }
+
+      /* ---- Distinguishing Characteristics: hard zero bottom spacing, always ---- */
+      #distinguishing-characteristics.cw-section {
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+      }
+
+      /* The tabs wrapper should not add bottom space in any mode */
+      #distinguishing-characteristics .cw-tabs-wrap {
+        margin-bottom: 0 !important;
+        border-bottom: 0 !important; /* prevent the 1px border from reading as "space" */
+      }
+
+      /* Desktop panel + stacked panel host: never add bottom padding/margins */
+      #distinguishing-characteristics .cw-tab-panel,
+      #distinguishing-characteristics .cw-tab-mobile-panel {
+        margin: 0 !important;
+        padding: 0 !important; /* IMPORTANT: applies even when .stack happens above 820px */
+      }
+
+      /* In stacked mode specifically, still keep things flush */
+      #distinguishing-characteristics .cw-tabs-wrap.stack {
+        margin-bottom: 0 !important;
+      }
+
+      /* Make sure inner content can’t reintroduce spacing via last-child margins */
+      #distinguishing-characteristics .cw-tab-card__inner > *:last-child {
+        margin-bottom: 0 !important;
+      }
+
+      /* If your stacked list was drawing a divider at the end, remove it */
+      #distinguishing-characteristics .cw-tabs-wrap.stack .cw-tabs {
+        border-bottom: 0 !important;
+      }
+      #distinguishing-characteristics .cw-tabs-wrap.stack {
+        margin-bottom: 0 !important;
+      }
+      #distinguishing-characteristics .cw-tabs {
+        margin-bottom: 0 !important;
+        border-bottom: 0 !important;
+      }
+      #distinguishing-characteristics .cw-tab:last-child {
+        border-bottom: 0 !important;
+      }
+      #distinguishing-characteristics #cw-tab-mobile-panel {
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      /* ===== ZERO OUT ANY BOTTOM SPACE WHEN STACKED ===== */
+      @supports selector(:has(*)) {
+        /* If the tabs wrapper is stacked anywhere inside the section, kill spacing */
+        #distinguishing-characteristics.cw-section:has(.cw-tabs-wrap.stack) {
+          margin-bottom: 0 !important;
+          padding-bottom: 0 !important;
+        }
+      }
+
+      #distinguishing-characteristics .cw-tabs-wrap.stack,
+      #distinguishing-characteristics .cw-tabs-wrap.stack > * {
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+        border-bottom: 0 !important;
+      }
+
+      /* No trailing divider on last tab in the list */
+      #distinguishing-characteristics .cw-tabs-wrap.stack .cw-tab:last-child {
+        border-bottom: 0 !important;
+      }
+
+      /* Prevent inner content from re-adding space via last-child margins */
+      #distinguishing-characteristics .cw-tab-mobile-panel > *:last-child,
+      #distinguishing-characteristics .cw-tab-card__inner > *:last-child {
+        margin-bottom: 0 !important;
+      }
+
+      /* Optional: tighter mobile-panel padding only in stacked mode */
+      #distinguishing-characteristics .cw-tabs-wrap.stack .cw-tab-card__inner {
+        padding: 24px 20px; /* adjust or remove if you want zero */
+      }
+      /* ===== ZERO OUT ANY BOTTOM SPACE WHEN STACKED ===== */
+      @supports selector(:has(*)) {
+        /* If the tabs wrapper is stacked anywhere inside the section, kill spacing */
+        #distinguishing-characteristics.cw-section:has(.cw-tabs-wrap.stack) {
+          margin-bottom: 0 !important;
+          padding-bottom: 0 !important;
+        }
+      }
+
+      #distinguishing-characteristics .cw-tabs-wrap.stack,
+      #distinguishing-characteristics .cw-tabs-wrap.stack > * {
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+        border-bottom: 0 !important;
+      }
+
+      /* No trailing divider on last tab in the list */
+      #distinguishing-characteristics .cw-tabs-wrap.stack .cw-tab:last-child {
+        border-bottom: 0 !important;
+      }
+
+      /* Prevent inner content from re-adding space via last-child margins */
+      #distinguishing-characteristics .cw-tab-mobile-panel > *:last-child,
+      #distinguishing-characteristics .cw-tab-card__inner > *:last-child {
+        margin-bottom: 0 !important;
+      }
+
+      /* Optional: tighter mobile-panel padding only in stacked mode */
+      #distinguishing-characteristics .cw-tabs-wrap.stack .cw-tab-card__inner {
+        padding: 24px 20px; /* adjust or remove if you want zero */
+      }
+    </style>
+  </head>
+  <body>
+    <main class="cw-page">
+      <section class="cw-section">
+        <h4 class="cw-heading">Overview</h4>
+        <p class="cw-body">
+          Collwick Capital, LLC (“Collwick”) is an independent, privately owned
+          alternative investment firm based in Charlotte, North Carolina. Since
+          our founding in 2010, Collwick has successfully managed a diversified,
+          multi-strategy fund of hedge funds portfolio. The fund seeks to
+          achieve capital preservation and strong risk-adjusted returns for our
+          investors.
+        </p>
+      </section>
+
+      <section class="cw-section" id="core-values" aria-labelledby="cv-title">
+        <h4 id="cw-title" class="cw-heading">Core Values</h4>
+        <div class="cw-grid">
+          <div class="cw-card" aria-label="Integrity" tabindex="0">
+            <h3 class="cw-card-heading">Integrity</h3>
+            <img
+              class="cw-img icon-integrity"
+              alt="Integrity Icon"
+              src="https://images.squarespace-cdn.com/content/6734f579c18bce0d41a028ad/f8f6b484-b9ef-4bda-a51f-f00c2cc48a3a/ChatGPT+Image+May+4%2C+2025%2C+11_14_59+PM.png?content-type=image%2Fpng"
+            />
+            <div class="cw-text">
+              <p>We act with integrity at all times.</p>
+            </div>
+          </div>
+
+          <div class="cw-card" aria-label="Alignment" tabindex="0">
+            <h3 class="cw-card-heading">Alignment</h3>
+            <img
+              class="cw-img icon-alignment"
+              alt="Alignment Icon"
+              src="https://images.squarespace-cdn.com/content/6734f579c18bce0d41a028ad/a30390a4-583b-457b-82ec-722553f4725d/Untitled+design+%2861%29.png?content-type=image%2Fpng"
+            />
+            <div class="cw-text">
+              <p>We only succeed when our clients succeed.</p>
+            </div>
+          </div>
+
+          <div class="cw-card" aria-label="Communication" tabindex="0">
+            <h3 class="cw-card-heading">Communication</h3>
+            <img
+              class="cw-img icon-communication"
+              alt="Communication Icon"
+              src="https://images.squarespace-cdn.com/content/6734f579c18bce0d41a028ad/a60534dd-2bd1-47c4-be4d-f4364c514f6c/communication-icon.png?content-type=image%2Fpng"
+            />
+            <div class="cw-text">
+              <p>
+                We communicate the opportunities and issues effectively and
+                transparently.
+              </p>
+            </div>
+          </div>
+
+          <div class="cw-card" aria-label="Excellence" tabindex="0">
+            <h3 class="cw-card-heading">Excellence</h3>
+
+            <img
+              class="cw-img icon-excellence"
+              alt="Excellence Icon"
+              src="https://images.squarespace-cdn.com/content/6734f579c18bce0d41a028ad/f0b4af84-3d79-459c-895d-b09983f80ca8/trophy-formatted.png?content-type=image%2Fpng"
+            />
+            <div class="cw-text">
+              <p>
+                We pursue exceptional quality and results in everything that we
+                do.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="cw-section" id="distinguishing-characteristics">
+        <h4 id="cw-title" class="cw-heading">Distinguishing Characteristics</h4>
+        <div class="cw-tabs-wrap" id="cw-tabs-wrap">
+          <div
+            class="cw-tabs"
+            id="cw-tabs"
+            role="tablist"
+            aria-label="Characteristics Tabs"
+          >
+            <button class="cw-tab is-active" data-key="performance">
+              <span class="cw-tab-label">Performance Driven</span>
+            </button>
+            <button class="cw-tab" data-key="process">
+              <span class="cw-tab-label">Demonstrated Investment Process</span>
+            </button>
+            <button class="cw-tab" data-key="team">
+              <span class="cw-tab-label">Experienced Team</span>
+            </button>
+          </div>
+
+          <div
+            class="cw-tab-panel"
+            id="cw-tab-panel"
+            role="tabpanel"
+            aria-live="polite"
+          >
+            <div class="cw-tab-card" data-key="performance">
+              <div class="cw-tab-card__inner">
+                <p>
+                  We are highly aligned with our investing partners and have
+                  clarity of focus on achieving our investment objectives.
+                </p>
+              </div>
+            </div>
+            <div class="cw-tab-card" data-key="process">
+              <div class="cw-tab-card__inner">
+                <p>
+                  Demonstrated investment process refined over 15+ years working
+                  together.
+                </p>
+              </div>
+            </div>
+            <div class="cw-tab-card" data-key="team">
+              <div class="cw-tab-card__inner">
+                <p>
+                  Seasoned professionals with deep industry relationships and
+                  extensive investment, management, and capital markets
+                  experience.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- where the panel is injected in stacked mode -->
+          <div
+            class="cw-tab-mobile-panel"
+            id="cw-tab-mobile-panel"
+            aria-live="polite"
+          ></div>
+        </div>
+      </section>
+    </main>
+    <script>
+      (function () {
+        const cards = Array.from(document.querySelectorAll(".cw-card"));
+        // add initial reveal class + a nice per-card stagger
+        cards.forEach((el, i) => {
+          el.classList.add("is-reveal");
+          el.style.setProperty("--stagger", `${i * 90}ms`);
+        });
+
+        // IntersectionObserver to toggle "in-view" as you scroll
+        const io = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              const el = entry.target;
+              if (entry.isIntersecting) {
+                el.classList.add("in-view");
+                // if you want it to animate only once, unobserve after first reveal:
+                io.unobserve(el);
+              }
+            });
+          },
+          {
+            root: null,
+            rootMargin: "0px 0px -10% 0px", // start a bit before fully in view
+            threshold: 0.2,
+          }
+        );
+
+        cards.forEach((el) => io.observe(el));
+      })();
+    </script>
+    <script>
+      (function () {
+        const wrap = document.getElementById("cw-tabs-wrap");
+        const tabsWrap = document.getElementById("cw-tabs");
+        const panel = document.getElementById("cw-tab-panel");
+        const mobileHost = document.getElementById("cw-tab-mobile-panel");
+
+        const tabs = [...tabsWrap.querySelectorAll(".cw-tab")];
+        const cards = [...panel.querySelectorAll(".cw-tab-card")];
+
+        /* show/hide helpers */
+        const cardFor = (key) => cards.find((c) => c.dataset.key === key);
+
+        function setActive(key) {
+          tabs.forEach((t) => {
+            const on = t.dataset.key === key;
+            t.classList.toggle("is-active", on);
+            t.setAttribute("aria-expanded", on ? "true" : "false");
+            t.setAttribute("aria-selected", on ? "true" : "false");
+          });
+        }
+
+        function showDesktop(key) {
+          cards.forEach(
+            (c) => (c.style.display = c.dataset.key === key ? "block" : "none")
+          );
+          const k = cardFor(key);
+          if (k) panel.style.background = getComputedStyle(k).backgroundColor;
+        }
+        function showStacked(key) {
+          const src = cardFor(key);
+          if (!src) return;
+          const clone = src.cloneNode(true);
+          clone.style.display = "block";
+          mobileHost.replaceChildren(clone);
+          const activeTab = tabs.find((t) => t.dataset.key === key);
+          if (activeTab) activeTab.after(mobileHost);
+        }
+        function render(key) {
+          setActive(key);
+          if (wrap.classList.contains("stack")) showStacked(key);
+          else showDesktop(key);
+        }
+
+        /* HARD RULE: NEVER WRAP TAB LABELS; if any would wrap -> stack */
+        function needsStack() {
+          // because labels are nowrap, "wrap" == overflow horizontally
+          return tabs.some((btn) => {
+            const label = btn.querySelector(".cw-tab-label");
+            if (!label) return false;
+            // measure true text width vs available
+            // (clientWidth already excludes borders/scrollbars)
+            return label.scrollWidth > label.clientWidth + 0.5;
+          });
+        }
+        function updateMode() {
+          const stack = needsStack();
+          wrap.classList.toggle("stack", stack);
+          const current = (
+            tabs.find((t) => t.classList.contains("is-active")) || tabs[0]
+          ).dataset.key;
+          render(current);
+        }
+
+        /* wire up */
+        tabs.forEach((t) =>
+          t.addEventListener("click", () => render(t.dataset.key))
+        );
+        window.addEventListener("resize", updateMode);
+        window.addEventListener("load", updateMode);
+        new ResizeObserver(updateMode).observe(tabsWrap);
+
+        /* init */
+        render("performance");
+        requestAnimationFrame(updateMode);
+      })();
+    </script>
+    <script>
+      (function () {
+        const wrap = document.getElementById("cw-tabs-wrap");
+        const tabsWrap = document.getElementById("cw-tabs");
+        const panel = document.getElementById("cw-tab-panel");
+        const mobileHost = document.getElementById("cw-tab-mobile-panel");
+
+        const tabs = [...tabsWrap.querySelectorAll(".cw-tab")];
+        const cards = [...panel.querySelectorAll(".cw-tab-card")];
+
+        // Ensure each tab has a measurable label span
+        tabs.forEach((btn) => {
+          if (!btn.querySelector(".cw-tab-label")) {
+            const span = document.createElement("span");
+            span.className = "cw-tab-label";
+            span.textContent = btn.textContent.trim();
+            btn.replaceChildren(span); // keep it simple: just the label text
+          }
+        });
+
+        const cardFor = (key) => cards.find((c) => c.dataset.key === key);
+
+        function setActive(key) {
+          tabs.forEach((t) =>
+            t.classList.toggle("is-active", t.dataset.key === key)
+          );
+        }
+        function showDesktop(key) {
+          cards.forEach(
+            (c) => (c.style.display = c.dataset.key === key ? "block" : "none")
+          );
+          const k = cardFor(key);
+          if (k) panel.style.background = getComputedStyle(k).backgroundColor;
+        }
+        function showStacked(key) {
+          const src = cardFor(key);
+          if (!src) return;
+          const clone = src.cloneNode(true);
+          clone.style.display = "block";
+          mobileHost.replaceChildren(clone);
+          const activeTab = tabs.find((t) => t.dataset.key === key);
+          if (activeTab) activeTab.after(mobileHost);
+        }
+        function render(key) {
+          setActive(key);
+          wrap.classList.contains("stack")
+            ? showStacked(key)
+            : showDesktop(key);
+        }
+
+        // === The important part: stack when ANY label would be cut off
+        function needsStack() {
+          // Fallback: if viewport is very narrow, just stack
+          if (window.innerWidth <= 820) return true;
+
+          return tabs.some((btn) => {
+            const label = btn.querySelector(".cw-tab-label");
+            if (!label) return false;
+
+            // available inner width inside the button (content box)
+            const cs = getComputedStyle(btn);
+            const pad =
+              parseFloat(cs.paddingLeft || 0) +
+              parseFloat(cs.paddingRight || 0);
+            const inner = Math.max(0, btn.clientWidth - pad);
+
+            // how wide the label *needs* (since it's nowrap)
+            const need = label.scrollWidth;
+
+            return need > inner + 0.5; // would be clipped
+          });
+        }
+
+        function updateMode() {
+          const stack = needsStack();
+          wrap.classList.toggle("stack", stack);
+          const current = (
+            tabs.find((t) => t.classList.contains("is-active")) || tabs[0]
+          ).dataset.key;
+          render(current);
+        }
+
+        // wire up
+        tabs.forEach((t) =>
+          t.addEventListener("click", () => render(t.dataset.key))
+        );
+        window.addEventListener("resize", updateMode);
+        window.addEventListener("orientationchange", updateMode);
+        new ResizeObserver(updateMode).observe(tabsWrap);
+
+        // init
+        render("performance");
+        requestAnimationFrame(updateMode);
+      })();
+    </script>
+  </body>
+</html>

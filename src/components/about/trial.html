@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Collwick — About + Core Values</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Fonts (optional) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&family=IBM+Plex+Sans:wght@400;500&family=Saira:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ===== Reset-ish */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      /* =================== SQUARESPACE OVERRIDES & SECTION PADDING =================== */
+      /* These selectors are no-ops outside Squarespace but harmless */
+      .sqs-block-content:has(> .cw-about-section),
+      .sqs-block:has(> .cw-about-section) {
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+
+      /* Section root + shared palette */
+      .cw-about-section {
+        padding: clamp(16px, 4vw, 64px) !important;
+        box-sizing: border-box;
+        width: 100%;
+
+        /* Shared palette used by both sections */
+        --shade1: #cbe3f6;
+        --shade2: #a9cdee;
+        --shade3: #87b7e1;
+        --shade4: #6aa0cf;
+
+        /* Global “no mid-word breaks” */
+        --no-split: keep-all;
+      }
+
+      /* Enforce no mid-word splitting anywhere inside this section */
+      .cw-about-section,
+      .cw-about-section * {
+        word-break: var(--no-split);
+        overflow-wrap: normal; /* don’t break inside words */
+        hyphens: none;
+      }
+
+      .cw-section-spacer {
+        height: clamp(16px, 4vw, 48px);
+      }
+
+      /* =================== OVERVIEW =================== */
+      .collwick-overview-section {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        padding: 0;
+      }
+      .collwick-overview-inner {
+        width: 100%;
+        max-width: 1200px;
+      }
+
+      .collwick-overview-heading {
+        font-family: Tactic-Sans, Inter, system-ui, sans-serif;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 26px;
+        margin: 0 0 1.2rem 0;
+        color: #0f2433;
+      }
+      .collwick-overview-body {
+        margin-top: 0 !important;
+        padding: 0 !important;
+        line-height: 2;
+        font-size: 20px;
+        text-align: justify;
+        font-family: Saira, system-ui, sans-serif;
+        color: #112233;
+      }
+
+      /* =================== CORE VALUES (blue tiles) =================== */
+      #core-values {
+        --ink: #ffffff;
+        --ink-dark: #0f2433;
+        --gap: clamp(12px, 1.6vw, 20px);
+        --card-pad: clamp(16px, 1.8vw, 24px);
+        --stagger: 110ms;
+        --slideX: 60vw;
+        --tileH: clamp(120px, 18vw, 180px);
+        --tileH-mobile: clamp(140px, 44vw, 220px);
+      }
+      #core-values .cv-inner {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0;
+      }
+      #core-values .cv-heading {
+        font-family: Tactic-Sans, system-ui, sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 800;
+        color: var(--ink-dark);
+        margin: 0 0 1.6rem;
+        font-size: clamp(18px, 3.2vw, 28px);
+      }
+      #core-values .cv-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: var(--gap);
+        width: 100%;
+      }
+      @media (max-width: 1100px) {
+        #core-values .cv-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (max-width: 640px) {
+        #core-values .cv-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      #core-values .cv-card {
+        position: relative;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        grid-template-areas: "title" "icon" "para";
+        justify-items: center;
+        align-items: start;
+        text-align: center;
+        gap: clamp(8px, 1vw, 12px);
+        padding: var(--card-pad);
+        color: var(--ink);
+        background: var(--bg);
+        overflow: hidden;
+        height: var(--tileH);
+        min-width: 0;
+
+        opacity: 0;
+        transform: translateX(var(--slideX));
+        transition: transform 600ms cubic-bezier(0.22, 0.61, 0.36, 1),
+          opacity 600ms ease;
+        transition-delay: calc(var(--i) * var(--stagger));
+        will-change: transform, opacity;
+      }
+      @media (max-width: 640px) {
+        #core-values .cv-card {
+          height: var(--tileH-mobile);
+        }
+      }
+      #core-values .cv-card:nth-child(1) {
+        --bg: var(--shade1);
+      }
+      #core-values .cv-card:nth-child(2) {
+        --bg: var(--shade2);
+      }
+      #core-values .cv-card:nth-child(3) {
+        --bg: var(--shade3);
+      }
+      #core-values .cv-card:nth-child(4) {
+        --bg: var(--shade4);
+      }
+
+      #core-values .cv-card header {
+        grid-area: title;
+        align-self: start;
+        z-index: 1;
+      }
+      #core-values .cv-card h3 {
+        font-family: Tactic-Sans, system-ui, sans-serif;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        margin: 0;
+        color: var(--ink);
+        font-size: clamp(16px, 2vw, 24px);
+        line-height: 1.1;
+        text-wrap: balance;
+      }
+
+      #core-values .icon-wrap {
+        grid-area: icon;
+        width: 100%;
+        height: 100%;
+        display: grid;
+        place-items: center;
+      }
+      #core-values .icon {
+        width: clamp(38px, 10vw, 80px);
+        height: auto;
+        color: rgba(255, 255, 255, 0.98);
+        transition: transform 220ms ease, filter 220ms ease;
+        transform-origin: center;
+      }
+      #core-values .cv-card:hover .icon,
+      #core-values .icon-wrap:hover .icon {
+        transform: scale(1.1);
+        filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.18));
+      }
+
+      #core-values .cv-card p {
+        grid-area: para;
+        margin: 0;
+        font-family: "IBM Plex Sans", system-ui, sans-serif;
+        color: var(--ink);
+        font-size: clamp(13px, 1.2vw, 16px);
+        line-height: 1.35;
+
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 4;
+        overflow: hidden;
+        opacity: 0;
+        max-height: 0;
+        transition: opacity 200ms ease, max-height 220ms ease;
+      }
+      #core-values .cv-card:hover p,
+      #core-values .cv-card:focus-within p {
+        opacity: 0.98;
+        max-height: 8.5em;
+      }
+      #core-values.is-inview .cv-card {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #core-values .cv-card {
+          transition: opacity 200ms linear !important;
+          transform: none !important;
+        }
+        #core-values .cv-card,
+        #core-values.is-inview .cv-card {
+          opacity: 1 !important;
+        }
+      }
+
+      /* =================== DISTINGUISHING CHARACTERISTICS =================== */
+      .cw-core-values {
+        --panel-bg: var(--shade1);
+        --cw-border: #00000030;
+        font-family: Inter, system-ui, -apple-system, "Helvetica Neue", Arial,
+          sans-serif;
+        width: 100%;
+        box-sizing: border-box;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      /* Map each key to a shade (same as Core Values) */
+      .cw-core-values[data-key="performance"] {
+        --panel-bg: var(--shade1);
+      }
+      .cw-core-values[data-key="process"] {
+        --panel-bg: var(--shade2);
+      }
+      .cw-core-values[data-key="team"] {
+        --panel-bg: var(--shade3);
+      }
+
+      .cw-core-values__title {
+        margin: 0 0 1.6rem 0;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        font-size: clamp(18px, 2.2vw, 28px);
+        color: #0f1a25;
+      }
+      .cw-core-values__wrap {
+        display: flex;
+        align-items: stretch;
+        width: 100%;
+        gap: 0;
+        flex-wrap: nowrap;
+      }
+
+      /* LEFT TILES — fluid */
+      .cw-core-values__tiles {
+        width: clamp(220px, 26vw, 360px);
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .cw-tile {
+        background: #fff;
+        border: 1px solid var(--cw-border);
+        border-right: none;
+        padding: 18px 22px;
+        font-weight: 700;
+        font-size: 16px;
+        cursor: pointer;
+        text-align: left;
+        line-height: 1.3;
+        white-space: nowrap; /* keep tab labels on one line */
+      }
+      .cw-core-values[data-key] .cw-tile--active {
+        background: var(--panel-bg);
+        border-color: var(--cw-border);
+      }
+      .cw-tile::after {
+        content: none !important;
+      }
+
+      /* RIGHT PANEL picks up the dynamic background */
+      .cw-core-values__detail {
+        flex: 1;
+        min-width: 0;
+        border: 1px solid var(--cw-border);
+        background: var(--panel-bg);
+        padding: 42px 48px;
+        display: flex;
+        align-items: flex-start;
+      }
+      .cw-card h3 {
+        margin: 0 0 14px 0;
+        font-size: 22px;
+        font-weight: 700;
+      }
+      .cw-card p {
+        margin: 0;
+        font-size: 18px;
+        line-height: 1.7;
+      }
+
+      /* -------- MID BREAKPOINT (tablet landscape) -------- */
+      @media (max-width: 1000px) {
+        .cw-core-values__wrap {
+          flex-direction: column;
+        }
+        .cw-core-values__tiles {
+          width: 100%;
+          flex-direction: row;
+        }
+        .cw-tile {
+          flex: 1;
+          border-right: 1px solid var(--cw-border);
+          border-bottom: none;
+          text-align: center;
+        }
+        .cw-tile:last-child {
+          border-right: none;
+        }
+      }
+
+      /* -------- MOBILE (accordion) -------- */
+      @media (max-width: 767px) {
+        .cw-core-values__wrap {
+          flex-direction: column;
+        }
+        .cw-core-values__detail {
+          display: none !important;
+        }
+        .cw-core-values__tiles {
+          flex-direction: column;
+          width: 100%;
+        }
+
+        .cw-mobile-panel {
+          display: none;
+          background: var(--panel-bg);
+          border: 1px solid var(--cw-border);
+          border-top: none;
+          padding: 24px;
+          font-size: 16px;
+          line-height: 1.6;
+        }
+        .cw-mobile-panel.active {
+          display: block;
+        }
+        .cw-mobile-panel h3 {
+          margin: 0 0 10px 0;
+          font-size: 18px;
+          font-weight: 700;
+        }
+        .cw-mobile-panel p {
+          margin: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="cw-about-section" aria-label="About">
+      <!-- ===================== OVERVIEW ===================== -->
+      <div class="collwick-overview-section">
+        <div class="collwick-overview-inner">
+          <h4 class="collwick-overview-heading">Overview</h4>
+
+          <div class="collwick-overview-body">
+            Collwick Capital, LLC (“Collwick”) is an independent, privately
+            owned alternative investment firm based in Charlotte, North
+            Carolina. Since our founding in 2010, Collwick has successfully
+            managed a diversified, multi-strategy fund of hedge funds portfolio.
+            The fund seeks to achieve capital preservation and strong
+            risk-adjusted returns for our investors, which include institutions,
+            family offices, and high net worth individuals. In addition to the
+            fund, Collwick principals are active investors in real estate and
+            private equity opportunities.
+          </div>
+        </div>
+      </div>
+
+      <!-- Spacer: Overview → Core Values -->
+      <div class="cw-section-spacer" aria-hidden="true"></div>
+
+      <!-- ===================== CORE VALUES ===================== -->
+      <div id="core-values" role="region" aria-labelledby="cv-title">
+        <div class="cv-inner">
+          <h2 id="cv-title" class="cv-heading">Core Values</h2>
+
+          <div class="cv-grid">
+            <!-- Card 1 -->
+            <article class="cv-card" style="--i: 0" aria-label="Integrity">
+              <div class="icon-wrap" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  class="icon"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    d="M12 2l7 3v6c0 5.25-3.4 9.74-7 11-3.6-1.26-7-5.75-7-11V5l7-3z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </div>
+              <header><h3>Integrity</h3></header>
+              <p>We act with integrity at all times.</p>
+            </article>
+
+            <!-- Card 2 -->
+            <article class="cv-card" style="--i: 1" aria-label="Alignment">
+              <div class="icon-wrap" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  class="icon"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    d="M12 2a10 10 0 1010 10A10 10 0 0012 2zm0 3a7 7 0 11-7 7 7 7 0 017-7zm0 3a4 4 0 11-4 4 4 4 0 014-4z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </div>
+              <header><h3>Alignment</h3></header>
+              <p>We only succeed when our clients succeed.</p>
+            </article>
+
+            <!-- Card 3 -->
+            <article class="cv-card" style="--i: 2" aria-label="Communication">
+              <div class="icon-wrap" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  class="icon"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    d="M21 6a4 4 0 00-4-4H7a4 4 0 00-4 4v6a4 4 0 004 4h1v4l5-4h4a4 4 0 004-4z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </div>
+              <header><h3>Communication</h3></header>
+              <p>
+                We communicate the opportunities and issues effectively and
+                transparently.
+              </p>
+            </article>
+
+            <!-- Card 4 -->
+            <article class="cv-card" style="--i: 3" aria-label="Excellence">
+              <div class="icon-wrap" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  class="icon"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    d="M12 2l3.09 6.3 6.91 1-5 4.86 1.18 6.84L12 18.77 5.82 21l1.18-6.84-5-4.86 6.91-1L12 2z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </div>
+              <header><h3>Excellence</h3></header>
+              <p>
+                We pursue exceptional quality and results in everything that we
+                do.
+              </p>
+            </article>
+          </div>
+        </div>
+      </div>
+
+      <!-- Spacer: Core Values → Distinguishing Characteristics -->
+      <div class="cw-section-spacer" aria-hidden="true"></div>
+
+      <!-- ===================== DISTINGUISHING CHARACTERISTICS ===================== -->
+      <div
+        class="cw-core-values"
+        id="cw-core-values-1"
+        aria-labelledby="dc-title"
+      >
+        <h4 id="dc-title" class="cw-core-values__title">
+          Distinguishing Characteristics
+        </h4>
+
+        <div class="cw-core-values__wrap">
+          <!-- LEFT TILES -->
+          <div
+            class="cw-core-values__tiles"
+            role="tablist"
+            aria-label="Characteristics Tabs"
+          >
+            <button
+              class="cw-tile cw-tile--active"
+              data-key="performance"
+              role="tab"
+              aria-selected="true"
+              aria-controls="dc-panel"
+            >
+              Performance Driven
+            </button>
+            <button
+              class="cw-tile"
+              data-key="process"
+              role="tab"
+              aria-selected="false"
+              aria-controls="dc-panel"
+            >
+              Demonstrated Investment Process
+            </button>
+            <button
+              class="cw-tile"
+              data-key="team"
+              role="tab"
+              aria-selected="false"
+              aria-controls="dc-panel"
+            >
+              Experienced Team
+            </button>
+          </div>
+
+          <!-- MOBILE DETAIL SLOT -->
+          <div
+            id="cw-mobile-panel"
+            class="cw-mobile-panel"
+            role="region"
+            aria-live="polite"
+          ></div>
+
+          <!-- DESKTOP RIGHT PANEL -->
+          <div id="dc-panel" class="cw-core-values__detail" role="tabpanel">
+            <div class="cw-card" data-key="performance">
+              <p>
+                We are highly aligned with our investing partners and have
+                clarity of focus on achieving our investment objectives.
+              </p>
+            </div>
+
+            <div class="cw-card" data-key="process" style="display: none">
+              <p>
+                Demonstrated investment process refined over 15+ years working
+                together.
+              </p>
+            </div>
+
+            <div class="cw-card" data-key="team" style="display: none">
+              <p>
+                Seasoned professionals who have deep industry relationships and
+                extensive investment, management, and capital markets
+                experience.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <script>
+      /* ===== Core Values: Trigger slide-in when in view ===== */
+      (() => {
+        const section = document.querySelector("#core-values");
+        if (!section) return;
+
+        const io = new IntersectionObserver(
+          (entries, obs) => {
+            for (const e of entries) {
+              if (e.isIntersecting) {
+                section.classList.add("is-inview");
+                obs.unobserve(section);
+              }
+            }
+          },
+          { threshold: 0.18, rootMargin: "0px 0px -10% 0px" }
+        );
+
+        io.observe(section);
+      })();
+
+      /* ===== Distinguishing Characteristics: tile switching + mobile accordion ===== */
+      (() => {
+        const root = document.getElementById("cw-core-values-1");
+        if (!root) return;
+
+        const tiles = [...root.querySelectorAll(".cw-tile")];
+        const cards = [...root.querySelectorAll(".cw-card")];
+        const mobilePanel = document.getElementById("cw-mobile-panel");
+
+        function show(key) {
+          // Theme the section via data-key (sync color to Core Values shades)
+          root.dataset.key = key;
+
+          // ARIA state for tabs
+          tiles.forEach((t) => {
+            const isActive = t.dataset.key === key;
+            t.classList.toggle("cw-tile--active", isActive);
+            t.setAttribute("aria-selected", String(isActive));
+          });
+
+          // Desktop panel swap
+          cards.forEach((c) => {
+            c.style.display = c.dataset.key === key ? "block" : "none";
+          });
+
+          // Mobile: inject content under active tile
+          const activeCard = cards.find((c) => c.dataset.key === key);
+          if (window.innerWidth <= 767) {
+            mobilePanel.innerHTML = activeCard.innerHTML;
+            mobilePanel.classList.add("active");
+            const btn = tiles.find((t) => t.dataset.key === key);
+            if (btn) btn.after(mobilePanel);
+          }
+        }
+
+        tiles.forEach((t) =>
+          t.addEventListener("click", () => show(t.dataset.key))
+        );
+        show("performance"); // initial
+      })();
+    </script>
+  </body>
+</html>
