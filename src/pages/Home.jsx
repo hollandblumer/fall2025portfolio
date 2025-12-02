@@ -53,7 +53,7 @@ export default function Home() {
 
           <div
             id="full-paragraph-container"
-            className="full-paragraph intro-text"
+            className="full-paragraph intro-text mobile-text-offset"
           >
             <MorphText
               texts={["CREATIVE", "CURIOUS", "PLAYFUL", "OBSESSED"]}
@@ -68,6 +68,24 @@ export default function Home() {
 
           {/* DESKTOP-ONLY SOCIAL ICONS */}
           <div className="desktop-social-icons">
+            <a
+              href="https://instagram.com/hollandblumer"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <i className="fa-brands fa-instagram"></i>
+            </a>
+            <a
+              href="https://linkedin.com/in/hollandblumer"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <i className="fa-brands fa-linkedin"></i>
+            </a>
+          </div>
+
+          {/* MOBILE-ONLY SOCIAL ICONS */}
+          <div className="mobile-social-icons">
             <a
               href="https://instagram.com/hollandblumer"
               target="_blank"

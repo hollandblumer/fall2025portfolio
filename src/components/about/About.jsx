@@ -1,6 +1,6 @@
 import AboutText from "./AboutText";
 import AboutVoronoi from "./AboutVoronoi";
-
+import AboutVoronoiOneShard from "./AboutVoronoiOneShard";
 export default function About() {
   return (
     <section id="about" className="about-section">

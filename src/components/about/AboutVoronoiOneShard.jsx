@@ -32,9 +32,15 @@ export default function AboutVoronoi() {
       // Voronoi / shards
       let RESAMPLED_VERTS = 14;
       let TARGET_POINTS_PER_SHARD = 60;
-      let SHARD_COUNT = 20;
 
-      let overlapMask;
+      // GOOEY EFFECT CONFIG (NEW)
+      const NOISE_SCALE = 0.01; // How zoomed in the Perlin Noise is (smoother effect)
+      const MAX_GOOEY_DISTORTION = 6; // Max pixel distance to move vertices
+      const NOISE_SPEED = 0.001; // Speed of the gooey animation
+      let noiseOffset = 0; // The current noise offset based on time
+
+      let overlapMasks = [];
+      let combinedOverlapMask;
       let letterMasks = [];
 
       const isMobile = () => p.windowWidth <= 820;
@@ -42,12 +48,17 @@ export default function AboutVoronoi() {
       function initGraphics() {
         RESAMPLED_VERTS = isMobile() ? 18 : 14;
         TARGET_POINTS_PER_SHARD = isMobile() ? 46 : 60;
-        SHARD_COUNT = isMobile() ? 26 : 20;
 
-        overlapMask = p.createGraphics(p.width, p.height);
-        overlapMask.pixelDensity(1);
+        combinedOverlapMask = p.createGraphics(p.width, p.height);
+        combinedOverlapMask.pixelDensity(1);
 
         letterMasks = letters.map(() => {
+          const g = p.createGraphics(p.width, p.height);
+          g.pixelDensity(1);
+          return g;
+        });
+
+        overlapMasks = Array.from({ length: letters.length - 1 }, () => {
           const g = p.createGraphics(p.width, p.height);
           g.pixelDensity(1);
           return g;
@@ -63,30 +74,15 @@ export default function AboutVoronoi() {
         canvas.parent(parent);
         p.pixelDensity(1);
 
-        // --- FIX: Use a fixed aspect ratio for display ---
-        // 1. Set the display width to 100% of the container.
         canvas.elt.style.width = "100%";
-
-        // 2. Calculate and set the display height based on the display width
-        //    and the internal aspect ratio (1080 / 460).
-        //    This ensures the canvas is scaled without stretching.
         canvas.elt.style.height = `calc(100% / ${ASPECT_RATIO})`;
 
-        // Remove maxHeight, as the calculated height maintains scale
-        // canvas.elt.style.maxHeight = "100px";
-
         initGraphics();
       };
 
-      // we keep internal size fixed; just recompute params on resize
       p.windowResized = () => {
-        // NOTE: If you resize the browser window, the canvas element
-        // will automatically scale via the CSS above, so no p5.resizeCanvas()
-        // is needed, only re-initialization of params if they are device-dependent.
         initGraphics();
       };
-
-      // ... (p.draw and all other functions remain the same) ...
 
       p.draw = () => {
         p.background(BG_COLOR);
@@ -95,7 +91,9 @@ export default function AboutVoronoi() {
         const cx = p.width * 0.5;
         const cy = p.height * 0.5;
 
-        // Using 0.75 for non-squished look
+        // NEW: Update noise offset for animation
+        noiseOffset += p.deltaTime * NOISE_SPEED;
+
         const fontSize = p.height * 0.75;
 
         const s = p.sin(t * TRACK_SPEED) * 0.5 + 0.5;
@@ -107,6 +105,8 @@ export default function AboutVoronoi() {
 
         // clear masks for this frame
         letterMasks.forEach((g) => g.clear());
+        overlapMasks.forEach((g) => g.clear());
+        combinedOverlapMask.clear();
 
         // 1) draw letters + masks
         p.push();
@@ -130,17 +130,27 @@ export default function AboutVoronoi() {
         }
         p.pop();
 
-        // 2) overlap mask
-        buildOverlapMaskFromLetters();
+        // 2) Build separate overlap masks for each pair (A/B, B/O, etc.)
+        buildAllOverlapMasks(letterMasks, overlapMasks, combinedOverlapMask);
 
-        // 3) shards
-        const shards = buildShardsFromMask(overlapMask, SHARD_COUNT);
+        // Array to hold all final shards (one per overlap mask)
+        const allShards = [];
 
-        // 4) cut overlap out of letters
-        cutOutOverlap();
+        // 3) Process each overlap mask into a single shard
+        for (const overlapGfx of overlapMasks) {
+          // Pass 1 as the shard count to get one large shard per mask.
+          const shard = buildShardFromMask(overlapGfx, 1);
+          if (shard) {
+            allShards.push(shard);
+          }
+        }
+
+        // 4) cut overlap out of letters using the combined mask
+        cutOutOverlap(combinedOverlapMask);
 
         // 5) draw shards
-        renderShards(shards);
+        // Pass the noiseOffset for the gooey effect
+        renderShards(allShards, noiseOffset);
       };
 
       // ===================== LETTER MASKS =====================
@@ -155,79 +165,91 @@ export default function AboutVoronoi() {
         g.pop();
       }
 
-      function buildOverlapMaskFromLetters() {
-        overlapMask.clear();
-        overlapMask.loadPixels();
-
+      function buildAllOverlapMasks(letterMasks, overlapMasks, combinedMask) {
         const n = letterMasks.length;
+        if (n < 2) return;
+
+        const radius = 3;
+
+        combinedMask.loadPixels();
+
         const pixelsArray = letterMasks.map((g) => {
           g.loadPixels();
           return g.pixels;
         });
 
-        const radius = 3; // thickening like your original Voronoi style
+        for (let i = 0; i < n - 1; i++) {
+          const currentPairMask = overlapMasks[i];
+          currentPairMask.loadPixels();
 
-        for (let y = 0; y < p.height; y++) {
-          const row = y * p.width;
-          for (let x = 0; x < p.width; x++) {
-            const idx = 4 * (row + x);
+          const pxA = pixelsArray[i];
+          const pxB = pixelsArray[i + 1];
 
-            let count = 0;
-            for (let i = 0; i < n; i++) {
-              if (pixelsArray[i][idx + 3] > 180) {
-                count++;
-                if (count >= 2) break;
-              }
-            }
+          for (let y = 0; y < p.height; y++) {
+            const row = y * p.width;
+            for (let x = 0; x < p.width; x++) {
+              const idx = 4 * (row + x);
 
-            if (count >= 2) {
-              for (let oy = -radius; oy <= radius; oy++) {
-                const ny = y + oy;
-                if (ny < 0 || ny >= p.height) continue;
-                const base = ny * p.width;
-                for (let ox = -radius; ox <= radius; ox++) {
-                  const nx = x + ox;
-                  if (nx < 0 || nx >= p.width) continue;
-                  const nidx = 4 * (base + nx);
-                  overlapMask.pixels[nidx] = 255;
-                  overlapMask.pixels[nidx + 1] = 255;
-                  overlapMask.pixels[nidx + 2] = 255;
-                  overlapMask.pixels[nidx + 3] = 255;
+              if (pxA[idx + 3] > 180 && pxB[idx + 3] > 180) {
+                for (let oy = -radius; oy <= radius; oy++) {
+                  const ny = y + oy;
+                  if (ny < 0 || ny >= p.height) continue;
+                  const base = ny * p.width;
+                  for (let ox = -radius; ox <= radius; ox++) {
+                    const nx = x + ox;
+                    if (nx < 0 || nx >= p.width) continue;
+                    const nidx = 4 * (base + nx);
+
+                    currentPairMask.pixels[nidx] = 255;
+                    currentPairMask.pixels[nidx + 1] = 255;
+                    currentPairMask.pixels[nidx + 2] = 255;
+                    currentPairMask.pixels[nidx + 3] = 255;
+
+                    combinedMask.pixels[nidx] = 255;
+                    combinedMask.pixels[nidx + 1] = 255;
+                    combinedMask.pixels[nidx + 2] = 255;
+                    combinedMask.pixels[nidx + 3] = 255;
+                  }
                 }
               }
             }
           }
+          currentPairMask.updatePixels();
         }
 
-        overlapMask.updatePixels();
+        combinedMask.updatePixels();
       }
 
-      function cutOutOverlap() {
+      function cutOutOverlap(g) {
         const ctx = p.drawingContext;
         ctx.save();
         ctx.globalCompositeOperation = "destination-out";
-        p.image(overlapMask, 0, 0);
+        p.image(g, 0, 0);
         ctx.restore();
       }
 
       // ===================== VORONOI SHARDS =====================
-      function buildShardsFromMask(g, shardCount) {
+      function buildShardFromMask(g, shardCount = 1) {
         const samples = sampleOpaqueAdaptive(
           g,
           shardCount,
           TARGET_POINTS_PER_SHARD
         );
-        const groups = seededKMeansSinglePass(samples, shardCount);
-        const out = [];
 
-        for (const pts of groups) {
-          if (!pts || pts.length < 3) continue;
-          const hull = convexHull(pts);
-          if (!hull || hull.length < 3) continue;
-          const res = resampleClosedPolyline(hull, RESAMPLED_VERTS);
-          out.push({ pts: res });
-        }
-        return out;
+        if (!samples.length) return null;
+
+        const groups = seededKMeansSinglePass(samples, 1);
+
+        const pts = groups[0];
+
+        if (!pts || pts.length < 3) return null;
+
+        const hull = convexHull(pts);
+        if (!hull || hull.length < 3) return null;
+
+        // We use RESAMPLED_VERTS to provide points for the noise-based distortion
+        const res = resampleClosedPolyline(hull, RESAMPLED_VERTS);
+        return { pts: res };
       }
 
       function sampleOpaqueAdaptive(g, k, perShard) {
@@ -256,8 +278,8 @@ export default function AboutVoronoi() {
 
         const pts = [];
         for (let y = 0; y < g.height; y += stride) {
-          const row = y * g.width;
-          for (let x = 0; x < g.width; x += stride) {
+          const row = y * p.width;
+          for (let x = 0; x < p.width; x += stride) {
             const idx = 4 * (row + x);
             if (g.pixels[idx + 3] > 2) {
               const jx = x + p.random(-0.35 * stride, 0.35 * stride);
@@ -271,6 +293,7 @@ export default function AboutVoronoi() {
 
       function seededKMeansSinglePass(points, k) {
         if (!points.length || k <= 1) return [points];
+
         const centers = [];
         centers.push(points[Math.floor(p.random(points.length))]);
         while (centers.length < k) {
@@ -282,8 +305,8 @@ export default function AboutVoronoi() {
             for (const c of centers) {
               const dx = pt.x - c.x;
               const dy = pt.y - c.y;
-              const d = dx * dx + dy * dy;
-              if (d < dn) dn = d;
+              const dSq = dx * dx + dy * dy;
+              if (dSq < dn) dn = dSq;
             }
             if (dn > bestDist) {
               bestDist = dn;
@@ -308,7 +331,7 @@ export default function AboutVoronoi() {
         return groups;
       }
 
-      // ===================== GEOMETRY =====================
+      // ===================== GEOMETRY (Unchanged) =====================
       function convexHull(points) {
         const pts = points.slice().sort((a, b) => a.x - b.x || a.y - b.y);
         if (pts.length <= 1) return pts;
@@ -386,14 +409,34 @@ export default function AboutVoronoi() {
         };
       }
 
-      // ===================== RENDER SHARDS =====================
-      function renderShards(list) {
+      // ===================== RENDER SHARDS (UPDATED for Gooey Effect) =====================
+      function renderShards(list, timeOffset) {
         p.noStroke();
         p.fill(SHARD_COLOR[0], SHARD_COLOR[1], SHARD_COLOR[2], SHARD_COLOR[3]);
+
         for (const s of list) {
           p.beginShape();
-          for (const v of s.pts) {
-            p.vertex(v.x, v.y);
+          for (let i = 0; i < s.pts.length; i++) {
+            const v = s.pts[i];
+
+            // Perlin Noise offset calculation
+            // Base the noise lookup on position, vertex index, and timeOffset
+            const xNoise = p.noise(
+              v.x * NOISE_SCALE,
+              v.y * NOISE_SCALE,
+              timeOffset
+            );
+            const yNoise = p.noise(
+              v.x * NOISE_SCALE + 100, // Offset x-noise space to get different noise values
+              v.y * NOISE_SCALE + 100,
+              timeOffset
+            );
+
+            // Map noise from [0, 1] to [-1, 1] then scale by MAX_GOOEY_DISTORTION
+            const dx = p.map(xNoise, 0, 1, -1, 1) * MAX_GOOEY_DISTORTION;
+            const dy = p.map(yNoise, 0, 1, -1, 1) * MAX_GOOEY_DISTORTION;
+
+            p.vertex(v.x + dx, v.y + dy);
           }
           p.endShape(p.CLOSE);
         }
@@ -413,7 +456,6 @@ export default function AboutVoronoi() {
       className="about-voronoi"
       style={{
         width: "100%",
-
         background: "#c5c5c5",
         overflow: "hidden",
       }}

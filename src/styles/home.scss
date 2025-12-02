@@ -208,3 +208,48 @@ canvas {
     display: none;
   }
 }
+
+/* MOBILE-ONLY SOCIAL ICONS (TOP RIGHT CORNER) */
+.mobile-social-icons {
+  position: absolute;
+  top: 60px;
+  right: 40px;
+  display: none; /* hidden on desktop */
+  gap: 18px;
+  z-index: 3000;
+
+  font-size: 32px;
+}
+
+.mobile-social-icons a {
+  color: #7b7979; /* same dark grey as desktop version */
+  text-decoration: none;
+  transition: opacity 0.25s ease;
+}
+
+.mobile-social-icons a:hover {
+  opacity: 0.6;
+}
+
+/* SHOW ONLY ON MOBILE */
+@media (max-width: 900px) {
+  .mobile-social-icons {
+    display: flex;
+  }
+}
+
+/* Apply offset only on mobile devices */
+@media (max-width: 820px) {
+  /* This margin pushes the main text block down */
+  .mobile-text-offset {
+    /* Adjust this value (e.g., 5rem) until the text is centered 
+       or positioned comfortably below the menu/icons */
+    margin-top: 5rem;
+  }
+
+  /* Optional: You may also need to adjust the padding on the entire left column 
+     to ensure there is space around the menu and icons */
+  .left-column {
+    padding-top: 2rem; /* Ensure top space for the menu and icons */
+  }
+}
