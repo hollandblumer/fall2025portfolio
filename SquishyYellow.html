@@ -2,27 +2,104 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Squishy HOLLAND BLUMER – Packed Yellow with Red Edges</title>
+    <title>
+      Squishy HOLLAND BLUMER – Packed Yellow with Red Edges + Film Grain
+    </title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.js"></script>
+
     <style>
+      :root {
+        --film-opacity: 0.7; /* overall strength of grain */
+        --film-blend: soft-light; /* soft-light, overlay, multiply, etc. */
+      }
+
       html,
       body {
         margin: 0;
         padding: 0;
         width: 100%;
         height: 100%;
+        background: #c5c5c5; /* requested background */
+      }
+
+      body {
         display: flex;
         align-items: center;
         justify-content: center;
-        background: #c5c5c5; /* requested background */
+        overflow: hidden;
       }
+
+      /* All non-film canvases (p5) */
       canvas {
         display: block;
         touch-action: none;
       }
+
+      /* Fullscreen film layer */
+      #filmLayer {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        mix-blend-mode: var(--film-blend);
+        opacity: var(--film-opacity);
+        display: block;
+      }
     </style>
   </head>
   <body>
+    <!-- Film grain canvas (background overlay) -->
+    <canvas id="filmLayer"></canvas>
+
+    <!-- Film grain script -->
+    <script type="module">
+      import * as THREE from "https://esm.sh/three";
+      import { EffectComposer } from "https://esm.sh/three/examples/jsm/postprocessing/EffectComposer.js";
+      import { RenderPass } from "https://esm.sh/three/examples/jsm/postprocessing/RenderPass.js";
+      import { FilmPass } from "https://esm.sh/three/examples/jsm/postprocessing/FilmPass.js";
+      import { OutputPass } from "https://esm.sh/three/examples/jsm/postprocessing/OutputPass.js";
+
+      const canvas = document.getElementById("filmLayer");
+
+      // Transparent renderer so it just overlays grain
+      const renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: false,
+        alpha: true,
+      });
+      renderer.setClearColor(0x000000, 0);
+
+      // Simple ortho camera + empty scene (just a flat background for film pass)
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x808080); // mid-grey for film texture
+      const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+      const composer = new EffectComposer(renderer);
+      composer.addPass(new RenderPass(scene, camera));
+
+      // FilmPass(intensity, scanlineIntensity, scanlineCount, grayscale)
+      const filmPass = new FilmPass(0.26, 0.24, 648, false);
+      composer.addPass(filmPass);
+
+      composer.addPass(new OutputPass());
+
+      function onResize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        renderer.setPixelRatio(dpr);
+        renderer.setSize(window.innerWidth, window.innerHeight, false);
+        composer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      window.addEventListener("resize", onResize);
+      onResize();
+
+      (function loop() {
+        composer.render();
+        requestAnimationFrame(loop);
+      })();
+    </script>
+
+    <!-- Squishy HOLLAND BLUMER p5 sketch -->
     <script>
       /* --------------------------------------------------------
           Basic 2D coordinate + geometry utilities
@@ -833,15 +910,9 @@
       }
 
       /* --------------------------------------------------------
-          Rendering – one “noodle” stroke: yellow with red edges
+          Rendering – cream fill with proper counters + strokes
       -------------------------------------------------------- */
 
-      /* --------------------------------------------------------
-        Rendering – fill only outer loop, stroke all loops
-      -------------------------------------------------------- */
-      /* --------------------------------------------------------
-        Rendering – cream fill with proper counters + red/yellow stroke
-      -------------------------------------------------------- */
       function drawLetter(blob) {
         if (!blob.loops || blob.loops.length === 0) return;
 
@@ -877,7 +948,7 @@
             smooth = tmp;
           }
 
-          // wrap for curve continuity (same pattern you used before)
+          // wrap for curve continuity
           const curvePts = [];
           curvePts.push(smooth[len - 2]);
           curvePts.push(smooth[len - 1]);
@@ -895,7 +966,7 @@
         // 2) FILL using canvas 2D even-odd rule so counters punch out
         const ctx = drawingContext; // p5's underlying canvas context
         ctx.save();
-        ctx.fillStyle = "#F7E9A9"; // your cream fill
+        ctx.fillStyle = "#F7E9A9"; // cream fill
         ctx.beginPath();
 
         contours.forEach((curvePts) => {
@@ -908,11 +979,11 @@
           ctx.closePath();
         });
 
-        // ⚠️ key part: 'evenodd' makes inner loops become holes
+        // key: 'evenodd' makes inner loops become holes
         ctx.fill("evenodd");
         ctx.restore();
 
-        // 3) STROKES (same noodle look as before)
+        // 3) STROKES
         const drawStroke = (curvePts, sw, r, g, b) => {
           stroke(r, g, b);
           strokeWeight(sw);
@@ -928,12 +999,10 @@
         };
 
         push();
-        // red outside, yellow inside on every contour (outer + counters)
+        // outer + inner stroke, both in cream to get that fat noodle edge
         contours.forEach((curvePts) => {
-          // drawStroke(curvePts, 16, 203, 43, 31); // outer red
-          // drawStroke(curvePts, 5, 180, 149, 67); // yellow
-          drawStroke(curvePts, 16, 247, 233, 169); // outer red
-          drawStroke(curvePts, 5, 247, 233, 169); // yellow
+          drawStroke(curvePts, 16, 247, 233, 169);
+          drawStroke(curvePts, 5, 247, 233, 169);
         });
         pop();
       }
