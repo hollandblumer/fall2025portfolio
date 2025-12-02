@@ -30,7 +30,6 @@
       /* All non-film canvases (p5) */
       canvas {
         display: block;
-        touch-action: none;
       }
 
       /* Fullscreen film layer */
@@ -749,7 +748,7 @@
         const bh = bounds.h;
 
         const rawPoints = letterFont.textToPoints(letter, 0, 0, fontSize, {
-          sampleFactor: 0.65,
+          sampleFactor: 0.6,
           simplifyThreshold: 0,
         });
 

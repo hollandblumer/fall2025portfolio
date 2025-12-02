@@ -1,3 +1,18 @@
+.morph-title-container {
+  position: relative;
+  display: inline-block;
+}
+
+.morph-title-span {
+  position: absolute;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
+}
+
+.morph-title-span:first-child {
+  opacity: 0; /* starts hidden */
+}
 .morph-text {
   position: relative;
   display: inline-block;

@@ -82,14 +82,14 @@ export default function Home() {
             className="full-paragraph intro-text mobile-text-offset"
           >
             <MorphText
-              texts={["CREATIVE", "CURIOUS", "PLAYFUL", "OBSESSED"]}
+              texts={["CREATIVE", "SOFTWARE", "INTERACTIVE"]}
               className="morph-word"
             />{" "}
             <MorphText
-              texts={["TECHNOLOGIST", "TECH PERSON", "CODER", "BUILDER"]}
+              texts={["TECHNOLOGIST", "ENGINEER", "DESIGNER"]}
               className="morph-word"
             />
-            <div className="location-line">based in Brooklyn</div>
+            <div className="location-line">based in Brooklyn </div>
           </div>
 
           {/* DESKTOP-ONLY SOCIAL ICONS */}

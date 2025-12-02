@@ -33,7 +33,7 @@ body {
 .menu-wrapper {
   position: absolute;
   top: 30px;
-  left: 60px;
+
   width: 105px;
   height: 50px;
   z-index: 2000;
@@ -92,7 +92,6 @@ body {
   }
 
   .menu-wrapper {
-    position: relative;
     top: 0;
     left: 0;
     margin-bottom: 20px;
@@ -108,7 +107,7 @@ body {
 
   .squishy-frame {
     width: 100%;
-    height: 700px; /* ✅ iframe fills the tall area */
+    height: 500px; /* ✅ iframe fills the tall area */
   }
 }
 
@@ -133,7 +132,6 @@ canvas {
   color: #f7e9aa;
   text-align: left;
   line-height: 1.2;
-  padding: 20px;
   display: block;
 }
 
@@ -165,22 +163,6 @@ canvas {
   color: #a5a5a5;
 }
 
-.morph-title-container {
-  position: relative;
-  display: inline-block;
-}
-
-.morph-title-span {
-  position: absolute;
-  top: 0;
-  left: 0;
-  white-space: nowrap;
-}
-
-.morph-title-span:first-child {
-  opacity: 0; /* starts hidden */
-}
-
 /* DESKTOP-ONLY SOCIAL ICONS */
 .desktop-social-icons {
   position: absolute;
@@ -188,8 +170,9 @@ canvas {
   left: 60px;
   display: flex;
   gap: 20px;
-  font-size: 22px;
+  font-size: 32px;
   color: #a5a5a5; /* dark grey */
+  z-index: 2000;
 }
 
 .desktop-social-icons a {
@@ -213,13 +196,15 @@ canvas {
 /* MOBILE-ONLY SOCIAL ICONS (TOP RIGHT CORNER) */
 .mobile-social-icons {
   position: absolute;
-  top: 60px;
-  right: 40px;
+  top: 0;
+  right: 30px;
   display: none; /* hidden on desktop */
   gap: 18px;
   z-index: 3000;
-
+  height: 50px;
   font-size: 32px;
+
+  top: 30px;
 }
 
 .mobile-social-icons a {
@@ -238,6 +223,15 @@ canvas {
   .mobile-social-icons {
     display: flex;
   }
+
+  .full-paragraph {
+    font-size: 37.5px;
+    font-weight: 800;
+    color: #f7e9aa;
+    text-align: left;
+    line-height: 1;
+    display: block;
+  }
 }
 
 /* Apply offset only on mobile devices */
@@ -246,7 +240,7 @@ canvas {
   .mobile-text-offset {
     /* Adjust this value (e.g., 5rem) until the text is centered 
        or positioned comfortably below the menu/icons */
-    margin-top: 5rem;
+    margin-top: 8rem;
   }
 
   /* Optional: You may also need to adjust the padding on the entire left column 
