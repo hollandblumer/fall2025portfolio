@@ -7,16 +7,6 @@
   align-items: flex-start;
 }
 
-.about-inner {
-  width: 100%;
-
-  /* STACK TITLE ABOVE BLURB ALWAYS */
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start; /* left align title + blurb */
-  gap: 30px;
-}
-
 /* RIGHT: BLURB */
 .about-blurb {
   width: 100%;
@@ -43,7 +33,6 @@
 
   .about-blurb {
     font-size: 22px;
-    max-width: 90%;
   }
 }
 
