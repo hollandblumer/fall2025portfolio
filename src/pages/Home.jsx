@@ -6,41 +6,25 @@ import OverlapBlobs from "./OverlapBlobs.jsx"; // Assuming this is needed
 import MorphText from "../components/text/MorphText.jsx";
 import FilmGrainLayer from "../components/textures/FilmGrainLayer.jsx";
 
-const ANIMATION_DURATION_MS = 2000;
-const PRELOADER_IFRAME_SRC = "./LoadingFh.html"; // New HTML file
-
 export default function Home() {
   const { hash } = useLocation();
-  const [showPreloader, setShowPreloader] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
 
   // 1. State to track if the screen is mobile or tablet (<= 1024px)
   const [isMobileOrTablet, setIsMobileOrTablet] = useState(false);
 
-  // --- NEW: Timer to hide the preloader iframe ---
+  // Handle scroll to #about (no preloader gate now)
   useEffect(() => {
-    // Start a timer to hide the preloader after the animation completes
-    const timer = setTimeout(() => {
-      setShowPreloader(false);
-    }, ANIMATION_DURATION_MS);
-
-    // Cleanup the timer when the component unmounts
-    return () => clearTimeout(timer);
-  }, []); // Run only once on mount
-  // ------------------------------------------------
-
-  // 2. useEffect to handle initial scroll position
-  useEffect(() => {
-    if (!showPreloader && hash === "#about") {
+    if (hash === "#about") {
       requestAnimationFrame(() => {
         document
           .getElementById("about")
           ?.scrollIntoView({ behavior: "smooth" });
       });
     }
-  }, [hash, showPreloader]);
+  }, [hash]);
 
-  // 3. useEffect to handle screen size check
+  // Handle screen size check
   useEffect(() => {
     const checkScreenSize = () => {
       // Set the breakpoint for mobile/tablet (e.g., up to 1024px)
@@ -57,30 +41,10 @@ export default function Home() {
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  // 4. Determine the iframe source based on screen size (for the main content)
+  // Determine the iframe source based on screen size (for the main content)
   const iframeSrc = isMobileOrTablet
     ? "./SquishyYellowMobileHolland.html" // Source for mobile/tablet
     : "./SquishyYellow.html"; // Source for desktop
-
-  // --- 5. Conditional Iframe Preloader Render ---
-  if (showPreloader) {
-    return (
-      <iframe
-        src={PRELOADER_IFRAME_SRC}
-        title="Loading Animation"
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100vw",
-          height: "100vh",
-          border: "none",
-          zIndex: 9999, // Ensure it covers everything
-        }}
-      />
-    );
-  }
-  // ------------------------------------------------
 
   return (
     <>
@@ -165,7 +129,6 @@ export default function Home() {
         </section>
 
         <section className="right-column">
-          {/* 5. Use the dynamically determined iframe source */}
           <iframe
             src={iframeSrc}
             title="Squishy Letters"
@@ -173,7 +136,6 @@ export default function Home() {
           ></iframe>
         </section>
 
-        {/* ... Rest of the component (menuOpen, slideout-menu, About) ... */}
         {menuOpen && (
           <div
             className="slideout-backdrop"
