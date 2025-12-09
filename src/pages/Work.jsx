@@ -1,143 +1,225 @@
-import { useEffect } from "react";
-import DiamondTitle from "../components/DiamondTitle";
-import DiamondTitle2 from "../components/DiamondTitle2";
-import Nav from "../components/Nav";
-import DiamondTitleFluctuate from "../components/DiamondTitleFluctuate";
-import PageStrings from "../components/PagesStrings";
+// src/pages/Work.jsx
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import DiamondTitleFinal from "../components/DiamondTitleFinal";
-import Nav2 from "../components/Nav2";
+import ElasticMenu from "../components/nav/ElasticMenu";
+import VideoCloth from "../components/VideoCloth";
+import FilmGrainLayer from "../components/textures/FilmGrainLayer";
+
+export const projects = [
+  {
+    id: 1,
+    slug: "checkerboard3d",
+    categories: ["featured", "creative"],
+    title: "Checkerboard in Motion and 3D",
+    description: "Thrilled to see it featured by CodePen ",
+    type: "video",
+    videoSrc:
+      "https://assets.codepen.io/9259849/5cc44ca4-52f5-4d90-98a1-0d993bc4b837.mp4",
+  },
+  {
+    id: 2,
+    slug: "katherinegroverfinejewelry",
+    categories: ["featured", "client work"],
+    title: "Animation for Katherine Grover Fine Jewelry",
+    description:
+      "Canvas Particle Animation using jewels from Katherine Grover Fine Jewelry",
+    type: "video",
+    videoSrc:
+      "https://hollandblumer.github.io/portfolio_videos/Subheading%20(12).mp4",
+  },
+  {
+    id: 3,
+    slug: "ccnycposter",
+    categories: ["featured", "creative"],
+    title: "Creative Coding NYC Poster",
+    description:
+      "Exploring how timing and motion can make shapes appear through perception",
+    type: "video",
+    videoSrc: "https://hollandblumer.github.io/portfolio_videos/cc.mp4",
+  },
+  {
+    id: 4,
+    slug: "cherylfudge",
+    categories: ["featured", "client work"],
+    title: "Cherylfudge.com",
+    description:
+      "A website design that compliments Cheryl Fudge's modern, dynamic art with a nod to Nantucket.",
+    type: "video",
+    videoSrc: "https://hollandblumer.github.io/portfolio_videos/cfudge.mp4",
+  },
+  {
+    id: 5,
+    slug: "americanseasons",
+    categories: ["featured", "client work"],
+    title: "Buzz-Worthy Animation for American Seasons",
+    description: "In light of them opening for the season on Nantucket",
+    type: "video",
+    videoSrc: "https://hollandblumer.github.io/portfolio_videos/seasons.mp4",
+  },
+  {
+    id: 6,
+    slug: "meredithnorvell",
+    categories: ["featured", "client work"],
+    title: "Website for Meredith Norvell",
+    description:
+      "Designed and built with interactive book elements that steal the show",
+    type: "video",
+    videoSrc:
+      "https://hollandblumer.github.io/portfolio_videos/meredithnorvell.mp4",
+  },
+  {
+    id: 7,
+    slug: "aj",
+    categories: ["featured", "client work"],
+    title: "Website for AJ",
+    description: "Short film exploring movement and tension in oil and light",
+    type: "video",
+    videoSrc: "https://hollandblumer.github.io/portfolio_videos/aj.mp4",
+  },
+  {
+    id: 8,
+    slug: "madewithlove",
+    categories: ["featured", "client work"],
+    title: "Made With Love",
+    description:
+      "When it comes together like this, it’s Valentine’s Day post-worthy",
+    type: "video",
+    videoSrc:
+      "https://cdn.dribbble.com/userupload/40906361/file/original-391a3ed9ce0b7e144eca01fb724be566.mp4",
+  },
+];
 
 export default function Work() {
-  useEffect(() => {
-    const filterButtons = document.querySelectorAll(".filter-button");
-    const projects = document.querySelectorAll(".project");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [activeFilter, setActiveFilter] = useState("featured");
 
-    filterButtons.forEach((button) => {
-      button.addEventListener("click", () => {
-        filterButtons.forEach((btn) => btn.classList.remove("active"));
-        button.classList.add("active");
-
-        const category = button.textContent.trim().toLowerCase();
-        projects.forEach((project) => {
-          const categories = project.dataset.category.split(" ");
-          const match = category === "all" || categories.includes(category);
-          project.style.display = match ? "block" : "none";
-        });
-      });
-    });
-
-    // Initial filter (show "featured")
-    const defaultCategory = "featured";
-    projects.forEach((project) => {
-      const categories = project.dataset.category.split(" ");
-      const match = categories.includes(defaultCategory);
-      project.style.display = match ? "block" : "none";
-    });
-  }, []);
+  const visibleProjects = projects.filter((project) =>
+    activeFilter === "all" ? true : project.categories.includes(activeFilter)
+  );
 
   return (
-    <main className="projects-section page">
-      <Nav2 />
-      <div className="projects-header">
-        <DiamondTitleFinal
-          text="WORK"
-          autoResponsive
-          desktopPx={70}
-          // tweak these to match your current global scaling
-          ipadBp={1024}
-          mobileBp={700}
-          ipadScale={0.7}
-          mobileScale={0.6}
-          autoHeight
-          heightScale={1}
-        />
-
-        <div style={{ width: "100%", maxWidth: 1000, margin: "0 auto" }}></div>
-
-        <div className="filter-menu">
-          <button className="filter-button active">FEATURED</button>
-          <button className="filter-button">ALL</button>
-          <button className="filter-button">CREATIVE CODE</button>
-          <button className="filter-button">3D</button>
-          <button className="filter-button">2D</button>
+    <>
+      <FilmGrainLayer />
+      <main className="projects-section page">
+        {/* Social icons */}
+        <div className="mobile-social-icons">
+          <a
+            href="https://instagram.com/hollandblumer"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <i className="fa-brands fa-instagram"></i>
+          </a>
+          <a
+            href="https://linkedin.com/in/hollandblumer"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <i className="fa-brands fa-linkedin"></i>
+          </a>
         </div>
-      </div>
 
-      <div className="projects-grid">
-        <article className="project" data-category="featured 3d">
-          <img
-            src="https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800"
-            alt="Project 1"
-          />
-          <h3 style={{ margin: 0, lineHeight: 1.4, whiteSpace: "nowrap" }}></h3>
-
-          <p>
-            A dynamic new visual language for the world’s leading music video
-            network.
-          </p>
-        </article>
-
-        <article className="project" data-category="featured 2d creative">
-          <img
-            src="https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?w=800"
-            alt="Project 2"
-          />
-          <h3 style={{ margin: 0, lineHeight: 1.4, whiteSpace: "nowrap" }}>
-            <DiamondTitle
-              text="VEVO"
-              // You tuned the look at 50px and liked it:
-              fontPx={14}
-              baselinePx={50} // keep look identical at this size
-              maxW={10}
-              letterSpacing={0.3}
-              fillSolid="#991a1aff"
+        <div className="work-nav">
+          <div className="work-menu-wrapper">
+            <ElasticMenu
+              isOpen={menuOpen}
+              onClick={() => setMenuOpen((prev) => !prev)}
             />
-          </h3>
-          <p>
-            Something can be simple and boring, and complex and interesting —
-            but what makes something simple and interesting?
-          </p>
-        </article>
+          </div>{" "}
+          <div className="work-desktop-social-icons">
+            <a
+              href="https://instagram.com/hollandblumer"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <i className="fa-brands fa-instagram"></i>
+            </a>
+            <a
+              href="https://linkedin.com/in/hollandblumer"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <i className="fa-brands fa-linkedin"></i>
+            </a>
+          </div>
+          <aside className={`slideout-menu ${menuOpen ? "open" : ""}`}>
+            <ul>
+              <li>
+                <a href="/work" onClick={() => setMenuOpen(false)}>
+                  Work
+                </a>
+              </li>
+              <li>
+                <a href="#about" onClick={() => setMenuOpen(false)}>
+                  About
+                </a>
+              </li>
+              <li>
+                <a
+                  href="mailto:hollandblumer6@icloud.com?subject=Hello&body=Hi%20Holland!"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Contact
+                </a>
+              </li>
+              <li>
+                <a href="/" onClick={() => setMenuOpen(false)}>
+                  Home
+                </a>
+              </li>
+            </ul>
+          </aside>
+        </div>
 
-        <article className="project" data-category="featured 2d">
-          <img
-            src="https://images.unsplash.com/photo-1511765224389-37f0e77cf0eb?w=800"
-            alt="Project 3"
+        {/* Header + filters */}
+        <div className="projects-header">
+          <DiamondTitleFinal
+            text="WORK"
+            autoResponsive
+            desktopPx={100}
+            ipadBp={1024}
+            mobileBp={700}
+            ipadScale={0.7}
+            mobileScale={0.6}
+            autoHeight
+            heightScale={1}
           />
-          <h3 style={{ margin: 0, lineHeight: 1.4, whiteSpace: "nowrap" }}></h3>
-          <p>
-            Animated illustrations celebrating a year’s worth of music listening
-            and discovery.
-          </p>
-        </article>
 
-        <article className="project" data-category="creative 3d">
-          <img
-            src="https://images.unsplash.com/photo-1540397103387-3d1fca6c86b6?w=800"
-            alt="Project 4"
-          />
-          <h3>Shader Playground</h3>
-          <p>Creative code experiments with 3D shaders.</p>
-        </article>
+          <div style={{ width: "100%", maxWidth: 1000, margin: "0 auto" }} />
 
-        <article className="project" data-category="2d">
-          <img
-            src="https://images.unsplash.com/photo-1581093588401-16a84f1f777b?w=800"
-            alt="Project 5"
-          />
-          <h3>Editorial Layout</h3>
-          <p>A featured editorial project using bold 2D graphics.</p>
-        </article>
+          <div className="filter-menu">
+            {["featured", "client work", "creative"].map((cat) => (
+              <button
+                key={cat}
+                className={`filter-button ${
+                  activeFilter === cat ? "active" : ""
+                }`}
+                onClick={() => setActiveFilter(cat)}
+              >
+                {cat.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
 
-        <article className="project" data-category="creative 3d">
-          <img
-            src="https://images.unsplash.com/photo-1551292831-023188e78222?w=800"
-            alt="Project 6"
-          />
-          <h3>Code Sculpture</h3>
-          <p>Interactive creative code meets 3D modeling.</p>
-        </article>
-      </div>
-    </main>
+        {/* GRID of VideoCloth components */}
+        <div className="projects-grid">
+          {visibleProjects.map((project) =>
+            project.type === "video" ? (
+              <Link
+                key={project.id}
+                to={`/work/${project.slug}`}
+                className="project-card-link"
+              >
+                <VideoCloth videoSrc={project.videoSrc} title={project.title}>
+                  <p className="project-desc">{project.description}</p>
+                </VideoCloth>
+              </Link>
+            ) : null
+          )}
+        </div>
+      </main>
+    </>
   );
 }

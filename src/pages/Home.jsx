@@ -81,11 +81,11 @@ export default function Home() {
             className="full-paragraph intro-text mobile-text-offset"
           >
             <MorphText
-              texts={["CREATIVE", "SOFTWARE", "INTERACTIVE"]}
+              texts={["CREATIVE", "COMPUTER", "SOFTWARE", "INTERACTIVE"]}
               className="morph-word"
             />{" "}
             <MorphText
-              texts={["TECHNOLOGIST", "ENGINEER", "DESIGNER"]}
+              texts={["TECHNOLOGIST", "SCIENTIST", "ENGINEER", "DESIGNER"]}
               className="morph-word"
             />
             <div className="location-line">based in Brooklyn </div>
@@ -146,17 +146,14 @@ export default function Home() {
         <aside className={`slideout-menu ${menuOpen ? "open" : ""}`}>
           <ul>
             <li>
-              <a href="#about" onClick={() => setMenuOpen(false)}>
-                About
+              <a href="/work" onClick={() => setMenuOpen(false)}>
+                Work
               </a>
             </li>
             <li>
-              <a
-                href="https://dribbble.com/hollandblumer"
-                onClick={() => setMenuOpen(false)}
-              >
-                Work
-              </a>
+              <a href="#about" onClick={() => setMenuOpen(false)}>
+                About
+              </a>{" "}
             </li>
             <li>
               <a

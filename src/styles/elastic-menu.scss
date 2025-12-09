@@ -8,6 +8,7 @@
   height: 100%;
   display: block;
   outline: none; /* Removes the focus outline */
+
   -webkit-tap-highlight-color: transparent; /* Removes the tap highlight on mobile WebKit browsers (iOS/some Android) */
   /* --- END FIX --- */
 }
@@ -64,7 +65,7 @@
   color: #f7e9aa;
   transform: translateX(-100%);
   transition: transform 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
-  background: rgba(255, 255, 255, 0.55); /* semi-transparent white */
+  background: rgba(204, 202, 202, 0.715); /* semi-transparent white */
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(18px); /* safari */
   z-index: 999;

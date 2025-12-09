@@ -1,18 +1,41 @@
 // src/pages/ProjectPage.jsx
 import { useMemo } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import DiamondTitle from "../../components/DiamondTitle.jsx"; // ← from src/pages -> src/components
-import projectData from "../../assets/projectData.js"; // ← make sure this path matches your tree
+import DiamondTitle from "../../components/DiamondTitle.jsx";
+import ElasticMenu from "../../components/nav/ElasticMenu.jsx"; // 👈 bring in the menu/X
+import projectData from "../../assets/projectData.js";
+
+// Helper function (carried over from previous response)
+const getLinkLabel = (href) => {
+  try {
+    const url = new URL(href);
+    const host = url.hostname.replace("www.", "");
+    if (host.includes("instagram.com")) return "Instagram";
+    if (host.includes("codepen.io")) return "CodePen";
+    // Fallback to the hostname
+    return host;
+  } catch (e) {
+    return "Link";
+  }
+};
 
 export default function ProjectPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const project = useMemo(
-    () => projectData.find((p) => p.slug === slug),
-    [slug]
-  );
 
-  if (!project)
+  const project = useMemo(() => {
+    if (Array.isArray(projectData)) {
+      // if you exported: const projectData = [ {...}, ... ]
+      return projectData.find((p) => p.slug === slug);
+    }
+    if (projectData && typeof projectData === "object") {
+      // if you exported: const projectData = { meredithnorvell: {...}, ... }
+      return projectData[slug];
+    }
+    return null;
+  }, [slug]);
+
+  if (!project) {
     return (
       <main className="page not-found">
         <h1>Not found</h1>
@@ -21,34 +44,43 @@ export default function ProjectPage() {
         </p>
       </main>
     );
+  }
 
-  const { title, tagLine, hero, palette, sections = [] } = project;
+  const { title, tagLine, hero, palette = {}, sections = [] } = project;
+  const bg = palette.bg || "#fff";
+  const ink = palette.ink || "#222";
 
   return (
     <main
       className="project-page page"
       style={{
-        background: "#fff",
-        color: "#222",
+        background: bg,
+        color: ink,
         lineHeight: 1.7,
-        fontSize: "1.1rem",
+        // REMOVED: fontSize: "1.1rem", as it's now handled by CSS
       }}
     >
       <header className="project-hero">
-        <button className="back" onClick={() => navigate(-1)}>
-          ← Back
-        </button>
+        {/* 🔥 ElasticMenu used as an X / close button */}
+        <div className="project-close-wrapper">
+          <ElasticMenu
+            isOpen={true} // force the X state
+            onClick={() => navigate(-1)} // go back when clicked
+          />
+        </div>
+
         <div className="hero">
-          <img src={hero.image} alt={hero.alt} className="hero-img" />
           <div className="hero-text">
-            <DiamondTitle
-              text={title}
-              maxW={20}
-              style={{ height: 160 }}
-              fillSolid={palette.ink}
-            />
-            <p>{tagLine}</p>
+            <h1>{title}</h1>
+            {tagLine && <p>{tagLine}</p>}
           </div>
+          {hero?.image && (
+            <img
+              src={hero.image}
+              alt={hero.alt || title}
+              className="hero-img"
+            />
+          )}
         </div>
       </header>
 
@@ -58,6 +90,7 @@ export default function ProjectPage() {
             case "text":
               return (
                 <div key={i} className="text-block">
+                  {/* Assuming content is a string with optional markdown */}
                   <p>{block.content}</p>
                 </div>
               );
@@ -75,7 +108,7 @@ export default function ProjectPage() {
                     src={block.src}
                     playsInline
                     autoPlay
-                    loop
+                    loop={block.loop ?? true}
                     muted
                     controls
                   />
@@ -98,6 +131,29 @@ export default function ProjectPage() {
                   )}
                 </div>
               );
+            case "link":
+              const label = getLinkLabel(block.href);
+              const nextBlockIsLink = sections[i + 1]?.type === "link";
+
+              return (
+                <span
+                  key={i}
+                  className="link-inline-wrapper"
+                  style={{ display: "inline" }}
+                >
+                  <a
+                    href={block.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`View on ${label}`}
+                  >
+                    {label}
+                  </a>
+                  {/* Use a separator if the next block is also a link. */}
+                  {nextBlockIsLink ? ", " : ". "}
+                </span>
+              );
+
             default:
               return null;
           }

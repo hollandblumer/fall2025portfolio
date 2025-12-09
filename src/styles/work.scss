@@ -1,6 +1,6 @@
 .projects-section {
   padding: 80px 40px;
-  max-width: 1400px;
+
   margin: 0 auto;
 }
 
@@ -45,7 +45,7 @@
 .projects-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 60px 40px;
+  gap: 60px 20px;
 }
 
 @media (max-width: 980px) {
@@ -65,6 +65,7 @@
   width: 100%;
   display: block;
   margin-bottom: 12px;
+  height: 450px;
 }
 
 .project h3 {
@@ -78,4 +79,244 @@
   color: #555;
   margin: 0;
   line-height: 1.6;
+}
+
+.project-frame {
+  position: relative;
+  /* Use padding-bottom trick for aspect ratio (e.g., 1:1 for 100%) */
+  padding-bottom: 100%;
+  height: 0;
+  overflow: hidden;
+}
+
+.project-frame img,
+.project-frame iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Ensures image/video covers the container */
+}
+
+.work-nav {
+  height: 100px;
+  position: absolute;
+  width: 100vw;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+
+  padding: 0 40px;
+}
+.work-desktop-social-icons {
+  width: 80px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 2000;
+  font-size: 35px;
+  color: #8b8b8b;
+}
+
+.work-desktop-social-icons a {
+  color: inherit; /* uses the parent color #a5a5a5 */
+  text-decoration: none; /* removes underline */
+}
+
+.work-desktop-social-icons a:hover,
+.work-desktop-social-icons a:focus {
+  color: inherit; /* prevents hover from changing color */
+}
+
+.work-menu-wrapper {
+  width: 55px;
+  height: 100px;
+  z-index: 2000;
+}
+/* Optional: Adjust for smaller screens if needed */
+@media (max-width: 768px) {
+  .work-desktop-social-icons {
+    display: none;
+  }
+}
+
+/* ============= PROJECT GRID WRAPPER ============= */
+
+.projectGrid {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto 64px;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 48px; /* space between rows */
+}
+
+/* Each project row: thumbnail on left, text on right */
+.projectGrid .block.project-thumb {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  column-gap: 32px;
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Reset link hover color if needed */
+.projectGrid .block.project-thumb:hover h2 {
+  text-decoration: underline;
+}
+
+/* Left column: thumbnail */
+.projectGrid .col.thumb {
+  width: 100%;
+}
+
+/* Ratio wrapper for perfect square */
+.ratio-1-1 {
+  position: relative;
+  width: 100%;
+  padding-top: 100%; /* 1:1 aspect ratio */
+  overflow: hidden;
+}
+
+/* Make iframe & img fill that square */
+.ratio-1-1 iframe,
+.ratio-1-1 img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* Vimeo behaves like background video */
+.ratio-1-1 iframe {
+  object-fit: cover;
+  pointer-events: none; /* feels like Fionn’s “background=1” */
+}
+
+/* Poster image sits on top unless you hide/fade it with JS if you want */
+.ratio-1-1 img {
+  object-fit: cover;
+  display: block;
+}
+
+/* Right column: text */
+.block-info {
+  font-family: "Lettera", system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
+}
+
+/* Sticky text so it tracks as you scroll the grid */
+.block-info .sticky {
+  position: sticky;
+  top: 80px; /* adjust to clear your nav */
+}
+
+/* Titles + body */
+.block-info h2 {
+  font-size: clamp(20px, 2.2vw, 28px);
+  margin: 0 0 8px;
+  font-weight: 500;
+}
+
+.block-info p {
+  font-size: 15px;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* ============= GRID FOOTER (EMAIL + IG) ============= */
+
+.projectGridFooter {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 24px 0;
+  border-top: 1px solid #ddd;
+  font-size: 14px;
+}
+
+.projectGridFooter a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.projectGridFooter a:hover {
+  text-decoration: underline;
+}
+
+/* ============= RESPONSIVE ============= */
+
+/* Medium: tighten spacing slightly */
+@media (max-width: 1024px) {
+  .projectGrid {
+    padding: 0 20px;
+    gap: 40px;
+  }
+
+  .projectGrid .block.project-thumb {
+    column-gap: 24px;
+  }
+
+  .block-info .sticky {
+    top: 64px;
+  }
+}
+
+/* Small screens: stack image over text (like Fionn on mobile) */
+@media (max-width: 768px) {
+  .projectGrid {
+    padding: 0 16px;
+    gap: 32px;
+  }
+
+  .projectGrid .block.project-thumb {
+    grid-template-columns: 1fr;
+    row-gap: 16px;
+  }
+
+  .block-info .sticky {
+    position: static;
+  }
+
+  .projectGridFooter {
+    flex-direction: column;
+    align-items: flex-start;
+    padding-inline: 16px;
+  }
+}
+
+.project-card-link {
+  color: inherit;
+  text-decoration: none;
+  display: block; /* optional but usually helpful for full-card links */
+  text-align: center;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.project-card-link:hover,
+.project-card-link:focus {
+  color: inherit; /* prevents hover/purple/blue changes */
+  text-decoration: none;
+}
+
+.project-card-link {
+  color: inherit;
+  text-decoration: none;
+  display: block; /* Ensure it behaves as a container */
+  text-align: center;
+  font-family: Arial, Helvetica, sans-serif;
+  /* Add back any height rule if you deleted one */
+  /* height: 100%; */
+}
+
+.project-desc {
+  color: #888888;
 }

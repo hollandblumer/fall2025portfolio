@@ -114,7 +114,7 @@ export default function ElasticMenu({
       style={style}
       aria-label={isOpen ? "Close menu" : "Open menu"}
     >
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="25 25 50 50">
         {/* TOP LINE */}
         <g
           className={

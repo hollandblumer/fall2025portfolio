@@ -1,7 +1,17 @@
+/* Base styles for ProjectPage - Desktop First */
 .project-page {
-  max-width: 850px;
   margin: 0 auto;
-  padding: 80px 20px;
+  padding: 100px 100px;
+  text-align: center;
+  font-family: Arial, Helvetica, sans-serif;
+  /* Set the default font size here instead of in the JSX inline style */
+  font-size: 1.1rem; /* Default/Desktop font size */
+}
+
+/* Base text block size */
+.text-block {
+  margin: 2.5rem 0;
+  font-size: 1.15rem; /* Default/Desktop text block size */
 }
 
 .project-hero img {
@@ -9,16 +19,14 @@
   margin-bottom: 2rem;
 }
 
-.text-block {
-  margin: 2.5rem 0;
-  font-size: 1.15rem;
+.hero-text {
+  font-size: medium;
+  font-weight: 700;
 }
 
 .image-block img,
 .video-block video {
   width: 100%;
-
-  margin: 2rem 0;
 }
 
 .image-grid {
@@ -36,4 +44,116 @@
 .image-grid img {
   width: 100%;
   border-radius: 8px;
+}
+
+.project-close-wrapper {
+  width: 55px;
+  height: 100px;
+  position: absolute;
+  left: 40px;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --- Mobile Styles (max-width: 768px) --- */
+@media (max-width: 768px) {
+  /* Reduce padding on the project page */
+  .project-page {
+    padding: 60px 20px; /* Smaller padding for mobile */
+    font-size: 1rem; /* Smaller overall base font size for mobile */
+  }
+
+  /* Reduce font size for text content blocks */
+  .text-block {
+    margin: 1.5rem 0; /* Less vertical space */
+    font-size: 1rem; /* Smaller text block font size */
+  }
+
+  /* Reposition the close button for mobile screens */
+  .project-close-wrapper {
+    left: 10px; /* Move closer to the edge */
+  }
+
+  /* Make sure the main title/hero text isn't excessively large, if necessary */
+  .project-page .hero-text h1 {
+    font-size: 2rem; /* Example: adjust if your h1 is too big */
+  }
+}
+
+/* [Other project card related styles are unchanged] */
+
+.project-card .project-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1; /* tweak to 1 / 1 if you want perfect squares */
+  overflow: hidden;
+  padding-bottom: 0 !important; /* override the old inline style just in case */
+}
+
+/* Fill that frame with the cloth canvas + hidden <video> */
+.project-card .project-media .image-cloth-instance,
+.project-card .project-media .cloth-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Make each grid item a full-height card */
+.projects-grid > .project-card-link {
+  display: flex;
+  height: 100%;
+}
+
+.project-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  height: 100%;
+}
+
+/* Thumbnail frame: SAME for every card */
+.project-card .project-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4; /* change to 1 / 1 if you want squares */
+  overflow: hidden;
+}
+
+/* The canvas container + hidden video BOTH fill that frame */
+.project-card .project-media .image-cloth-instance,
+.project-card .project-media .cloth-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Title + description */
+.project-title {
+  margin-top: 14px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.project-desc {
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Clean link styles (you already had this but here’s a compact version) */
+.project-card-link {
+  color: inherit;
+  text-decoration: none;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.project-card-link:hover,
+.project-card-link:focus {
+  color: inherit;
+  text-decoration: none;
 }

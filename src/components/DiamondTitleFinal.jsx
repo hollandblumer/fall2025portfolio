@@ -21,8 +21,8 @@ export default function DiamondTitleFinal({
   text = "loading",
 
   /** Visuals */
-  topColor = "#FFB310",
-  botColor = "#FFB310",
+  topColor = "#F7EAAC",
+  botColor = "#F7EAAC",
   edgeThresh = 0.05, // alpha threshold for sampling
 
   /** Auto height */
