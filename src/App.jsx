@@ -11,15 +11,19 @@ import ProjectPage from "./pages/projects/ProjectPage.jsx";
 export default function App() {
   return (
     <Routes>
+      {/* keep this one outside if you want a bare loading page */}
       <Route path="/loading" element={<LoadingPage />} />
-      <Route path="/" element={<Home />} />
-      <Route path="/resume" element={<Resume />} />
-      <Route path="/work" element={<Work />} />
-      <Route path="/work/:slug" element={<ProjectPage />} />
-      <Route path="/work/:slug/:page" element={<ProjectPage />} />
-      <Route path="/templates" element={<Templates />} />
-      <Route path="/contact" element={<Contact />} />
-      <Route path="/loading" element={<LoadingPage />} />
+
+      {/* everything else inside Layout */}
+      <Route element={<Layout />}>
+        <Route path="/" element={<Home />} />
+        <Route path="/resume" element={<Resume />} />
+        <Route path="/work" element={<Work />} />
+        <Route path="/work/:slug" element={<ProjectPage />} />
+        <Route path="/work/:slug/:page" element={<ProjectPage />} />
+        <Route path="/templates" element={<Templates />} />
+        <Route path="/contact" element={<Contact />} />
+      </Route>
     </Routes>
   );
 }
