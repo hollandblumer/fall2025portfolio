@@ -12,13 +12,11 @@ export default function App() {
   return (
     <Routes>
       <Route path="/loading" element={<LoadingPage />} />
-      <Route element={<Layout />} />
       <Route path="/" element={<Home />} />
       <Route path="/resume" element={<Resume />} />
       <Route path="/work" element={<Work />} />
       <Route path="/work/:slug" element={<ProjectPage />} />
       <Route path="/work/:slug/:page" element={<ProjectPage />} />
-
       <Route path="/templates" element={<Templates />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/loading" element={<LoadingPage />} />
