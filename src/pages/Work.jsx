@@ -1,6 +1,6 @@
 // src/pages/Work.jsx
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import DiamondTitleFinal from "../components/DiamondTitleFinal";
 import ElasticMenu from "../components/nav/ElasticMenu";
 import VideoCloth from "../components/VideoCloth";
@@ -146,9 +146,9 @@ export default function Work() {
           <aside className={`slideout-menu ${menuOpen ? "open" : ""}`}>
             <ul>
               <li>
-                <a href="/work" onClick={() => setMenuOpen(false)}>
+                <Link to="/work" onClick={() => setMenuOpen(false)}>
                   Work
-                </a>
+                </Link>
               </li>
               <li>
                 <a href="#about" onClick={() => setMenuOpen(false)}>
