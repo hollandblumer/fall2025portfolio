@@ -1,14 +1,14 @@
 {
   "name": "fall2025portfolio",
-  "private": true,
   "version": "0.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "predeploy": "vite build && cp dist/index.html dist/404.html",
-    "deploy": "vite build && gh-pages -d dist -b gh-pages"
+    "predeploy": "npm run build",
+    "deploy": "cp dist/index.html dist/404.html && gh-pages -d dist"
   },
   "dependencies": {
     "@react-spring/web": "^10.0.3",
