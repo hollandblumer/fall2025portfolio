@@ -23,7 +23,7 @@ export default function About() {
   // Determine the iframe source based on screen size (for the main content)
   const iframeSrc = isMobileOrTablet
     ? "./SmearTextWork.html?text=ABOUT&scale=2.7" // Source for mobile/tablet
-    : "./SmearTextWork.html?text=ABOUT&scale=5.7"; // Source for desktop
+    : "./SmearTextWork.html?text=ABOUT&scale=3.7"; // Source for desktop
 
   return (
     <section id="about" className="about-section">
@@ -84,8 +84,8 @@ export default function About() {
           team and began taking on design projects for friends. She later earned
           a graduate degree in Computer Engineering at Dartmouth College,
           serving as the full-stack developer on a six-month ChargePoint project
-          alongside her studies. Today, she helps clients communicate clearly
-          and stand out online.
+          alongside her studies. She now helps clients communicate clearly and
+          stand out online.
         </div>
       </div>
     </section>

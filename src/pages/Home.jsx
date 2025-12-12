@@ -75,7 +75,7 @@ export default function Home() {
             />
           </div>
 
-          <Link to="/templates" className="templates-out-now-desktop">
+          {/*     <Link to="/templates" className="templates-out-now-desktop">
             Templates Out Now{" "}
             <svg
               className="diagonal-arrow"
@@ -91,10 +91,10 @@ export default function Home() {
               <path d="M7 17L17 7" />
               <path d="M7 7h10v10" />
             </svg>
-          </Link>
+          </Link> */}
 
           {/* MOBILE-ONLY LINK */}
-          <Link to="/templates" className="templates-out-now-mobile">
+          {/*   <Link to="/templates" className="templates-out-now-mobile">
             Templates Out Now{" "}
             <svg
               className="diagonal-arrow"
@@ -110,7 +110,7 @@ export default function Home() {
               <path d="M7 17L17 7" />
               <path d="M7 7h10v10" />
             </svg>
-          </Link>
+          </Link> */}
 
           {/* Blur-melt filter (SVG remains the same) */}
           <svg width="0" height="0">
