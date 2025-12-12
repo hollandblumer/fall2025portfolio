@@ -1,0 +1,94 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+:root {
+  --bez: cubic-bezier(0.77, 0, 0.175, 1);
+  --blobBase: 0.85; /* 👈 make this smaller/larger */
+  --blobApart: 0.65; /* 👈 size when separated */
+}
+
+.preload {
+  position: fixed;
+  inset: 0;
+  background: #c5c5c5;
+  z-index: 9999;
+}
+
+.goo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 320px;
+  height: 160px;
+  width: 220px; /* ⬅ smaller */
+  height: 110px; /* ⬅ smaller */
+  transform: translate(-50%, -50%);
+  overflow: visible;
+}
+
+/* Rotate around the viewBox center */
+.cell {
+  transform-box: view-box;
+  transform-origin: 150px 70px;
+  animation: rotation 4s var(--bez) infinite;
+}
+
+.blob {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.blob-a {
+  animation: cell-1 3s var(--bez) infinite;
+}
+.blob-b {
+  animation: cell-2 3s var(--bez) infinite;
+}
+
+@keyframes cell-1 {
+  0% {
+    transform: scale(var(--blobBase)) translate3d(0, 0, 0);
+  }
+  33.33% {
+    transform: scale(var(--blobApart)) translate3d(-125px, 0, 0);
+  }
+  66.66% {
+    transform: scale(var(--blobApart)) translate3d(-125px, 0, 0);
+  }
+  100% {
+    transform: scale(var(--blobBase)) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes cell-2 {
+  0% {
+    transform: scale(var(--blobBase)) translate3d(0, 0, 0);
+  }
+  33.33% {
+    transform: scale(var(--blobApart)) translate3d(125px, 0, 0);
+  }
+  66.66% {
+    transform: scale(var(--blobApart)) translate3d(125px, 0, 0);
+  }
+  100% {
+    transform: scale(var(--blobBase)) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes rotation {
+  0% {
+    transform: rotate(0deg);
+  }
+  33.33% {
+    transform: rotate(0deg);
+  }
+  66.66% {
+    transform: rotate(180deg);
+  }
+  100% {
+    transform: rotate(180deg);
+  }
+}

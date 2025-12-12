@@ -5,13 +5,13 @@ export default function WorkNavSliced({
   text = "CONTACT",
   rows = 3,
   fontSizePx = 30,
-  color = "#f65c2e",
+  color = "#A5A5A5",
   direction = "left", // "left" | "right"
   skewDegAbs = 1.5,
   offsetsPx = [-0.4, 0.25, -0.2],
 
   letterSpacing = 0,
-  fontFamily = "'Times New Roman', Times, serif",
+  fontFamily = "''Times New Roman', Times, serif'",
   italic = true,
   fontWeight = 800,
 

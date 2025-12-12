@@ -21,8 +21,9 @@
 
 .filter-menu {
   display: flex;
-  gap: 16px;
+  gap: 20px;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .filter-button {
@@ -319,4 +320,9 @@
 
 .project-desc {
   color: #888888;
+}
+
+.work-frame {
+  border: none;
+  outline: none;
 }

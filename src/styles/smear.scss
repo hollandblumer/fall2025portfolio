@@ -1,0 +1,258 @@
+/* ==========================================================================
+   Layout
+   ========================================================================== */
+
+.single-template-container {
+  padding: 0 20px;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.smear-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+.smear-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 54px;
+}
+
+.smear-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 24px;
+}
+
+.smear-row-spaced {
+  margin-top: 4px;
+}
+
+.smear-row-bottom {
+  justify-content: center;
+  margin-top: 48px;
+}
+
+/* Step 2 dropdown groups */
+.smear-group {
+  margin-top: 8px;
+}
+
+.smear-group .smear-row {
+  gap: 32px;
+  margin-top: 10px;
+}
+
+/* ==========================================================================
+   Controls
+   ========================================================================== */
+
+.smear-control {
+  min-width: 170px;
+  max-width: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.smear-control-inline {
+  max-width: 240px;
+  align-items: flex-start;
+}
+
+.smear-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.smear-label {
+  font-weight: 500;
+}
+
+.smear-value {
+  font-weight: 600;
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+/* Inputs */
+.smear-control input[type="range"] {
+  width: 100%;
+  accent-color: #f7e9a9;
+}
+
+.smear-control input[type="file"] {
+  font-size: 0.7rem;
+}
+
+.smear-select {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid #a5a5a5;
+  background: #f6f6f6;
+}
+
+/* Buttons */
+.smear-reset-button,
+.smear-export-button {
+  border: 1px solid #a5a5a5;
+  background: #f9f9f9;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.smear-reset-button {
+  padding: 9px 22px;
+}
+
+.smear-export-button {
+  padding: 8px 16px;
+}
+
+.smear-export-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ==========================================================================
+   Info tooltips
+   ========================================================================== */
+
+.smear-info-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.smear-info-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid #a5a5a5;
+  background: #f9f9f9;
+  font-size: 0.65rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.smear-info-tooltip {
+  position: absolute;
+  top: 140%;
+  left: 0;
+  z-index: 10;
+  width: 220px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: #333;
+}
+
+/* ==========================================================================
+   Canvas / Preview
+   ========================================================================== */
+
+.smear-canvas-wrapper {
+  width: 100%;
+  margin: 0 auto;
+  position: relative;
+  text-align: center;
+  z-index: 1; /* keep behind Step 3 controls */
+}
+
+.smear-canvas-inner {
+  display: block;
+  margin: 0 auto;
+  transform-origin: top center;
+}
+
+.smear-canvas-wrapper canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Status overlay on preview */
+.smear-status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  color: #a5a5a5;
+  pointer-events: none;
+}
+
+.smear-status.error {
+  color: #ff6666;
+}
+
+/* Safety: preview should never eat clicks */
+.smear-canvas-inner,
+.smear-canvas-inner canvas {
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   Step 3 export section
+   ========================================================================== */
+
+.smear-export-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  position: relative;
+  z-index: 5; /* above transformed canvas stacking context */
+}
+
+.smear-export-note {
+  font-size: 0.8rem;
+  text-align: center;
+  opacity: 0.8;
+  position: relative;
+  z-index: 5;
+}
+
+.smear-export-note span {
+  font-weight: 600;
+}
+
+/* Record row */
+.smear-record-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.smear-record-duration {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.smear-record-label {
+  font-size: 12px;
+  opacity: 0.7;
+}

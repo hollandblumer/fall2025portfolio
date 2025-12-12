@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Springy Blob Text – Auto + Touch/Mouse Smear (Soft)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #c5c5c5;
+      }
+      canvas {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      /* ================================
+         URL PARAMS (TEXT + SCALE)
+      ================================ */
+
+      const params = new URLSearchParams(window.location.search);
+      const TEXT_STRING = params.get("text") || "WORK";
+
+      const DEFAULT_SCALE = 3.7;
+      let scaleRaw = parseFloat(params.get("scale"));
+      if (Number.isNaN(scaleRaw)) scaleRaw = DEFAULT_SCALE;
+
+      // Clamp so we don't get absurd values that generate tons of points
+      const SCALE_MULTIPLIER = Math.min(Math.max(scaleRaw, 2.5), 5.0);
+
+      /* ================================
+         CONFIG
+      ================================ */
+
+      let letterFont;
+      const FONT_URL =
+        "https://assets.codepen.io/9259849/RubikMonoOne-Regular_1.ttf";
+
+      const vertexDistanceRel = 0.008;
+      let effectiveVertexDistance;
+
+      /* ================================
+         Spring physics
+      ================================ */
+
+      class Point {
+        constructor(x, y) {
+          this.x = x;
+          this.y = y;
+        }
+        moveTo(x, y) {
+          this.x = x;
+          this.y = y;
+          return this;
+        }
+        delta(p) {
+          return [this.x - p.x, this.y - p.y];
+        }
+        distance(p) {
+          const dx = p.x - this.x;
+          const dy = p.y - this.y;
+          return Math.sqrt(dx * dx + dy * dy);
+        }
+      }
+
+      const ELASTICITY = 0.03;
+      const DAMPING = 0.75;
+      const MASS = 2;
+      const ADJACENT_SPRING_CONSTANT = 0.1;
+
+      // Slightly softer
+      let MOUSE_STRENGTH = 0.6;
+      let MOUSE_RADIUS;
+
+      // Softer background wobble
+      const AUTO_WOBBLE_STRENGTH = 0.12;
+
+      class Spring extends Point {
+        constructor({
+          x,
+          y,
+          mass = MASS,
+          elasticity = ELASTICITY,
+          damping = DAMPING,
+        }) {
+          super(x, y);
+          this.ox = x;
+          this.oy = y;
+          this.vx = 0;
+          this.vy = 0;
+          this.fx = 0;
+          this.fy = 0;
+          this.mass = mass;
+          this.elasticity = elasticity;
+          this.damping = damping;
+          this.attractors = [];
+        }
+
+        applyForce(x, y) {
+          this.fx += x;
+          this.fy += y;
+        }
+
+        addAttractor(p) {
+          this.attractors.push(p);
+        }
+
+        setForceFromAttractors() {
+          this.attractors.forEach((p) => {
+            const fx = ADJACENT_SPRING_CONSTANT * p.vx;
+            const fy = ADJACENT_SPRING_CONSTANT * p.vy;
+            this.applyForce(fx, fy);
+          });
+        }
+
+        applyForceFromPointer(ptr, strengthMul = 1.0) {
+          if (!ptr) return;
+          const distance = this.distance(ptr.position);
+          if (distance < MOUSE_RADIUS) {
+            const [dx, dy] = ptr.delta();
+            const power =
+              (1 - distance / MOUSE_RADIUS) * MOUSE_STRENGTH * strengthMul;
+            this.applyForce(dx * power, dy * power);
+          }
+        }
+
+        applyAutoWobble() {
+          const t = frameCount * 0.01;
+          const nx = noise(this.ox * 0.01, this.oy * 0.01, t);
+          const ny = noise(this.ox * 0.01 + 100.0, this.oy * 0.01 + 100.0, t);
+          const ax = (nx - 0.5) * AUTO_WOBBLE_STRENGTH;
+          const ay = (ny - 0.5) * AUTO_WOBBLE_STRENGTH;
+          this.applyForce(ax, ay);
+        }
+
+        setSpringForce() {
+          const fx = (this.ox - this.x) * this.elasticity;
+          const fy = (this.oy - this.y) * this.elasticity;
+          this.fx += fx;
+          this.fy += fy;
+        }
+
+        solveVelocity() {
+          if (this.fx === 0 && this.fy === 0) return;
+          const ax = this.fx / this.mass;
+          const ay = this.fy / this.mass;
+          this.vx = this.damping * this.vx + ax;
+          this.vy = this.damping * this.vy + ay;
+          this.x += this.vx;
+          this.y += this.vy;
+          this.fx = 0;
+          this.fy = 0;
+        }
+
+        update(autoPtr, manualPtr) {
+          this.setForceFromAttractors();
+          // Auto smear
+          this.applyForceFromPointer(autoPtr, 1.0);
+          // Real mouse / touch – slightly stronger, but still soft
+          this.applyForceFromPointer(manualPtr, 1.3);
+          this.applyAutoWobble();
+          this.setSpringForce();
+          this.solveVelocity();
+        }
+      }
+
+      /* ================================
+         Pointer
+      ================================ */
+
+      class SpringPointer {
+        constructor(x, y) {
+          this.position = new Point(x, y);
+          this.lastPosition = new Point(x, y);
+        }
+        updateFromMouse(mx, my) {
+          this.lastPosition.moveTo(this.position.x, this.position.y);
+          this.position.moveTo(mx, my);
+        }
+        delta() {
+          return this.position.delta(this.lastPosition);
+        }
+      }
+
+      /* ================================
+         Global state
+      ================================ */
+
+      let autoPointer; // scripted motion
+      let manualPointer; // mouse or touch
+
+      let springs = [];
+      let blobs = [];
+
+      let textLeft = 0;
+      let textRight = 0;
+      let textBaseY = 0;
+
+      // Touch tracking (for iPhone)
+      let hasTouch = false;
+
+      /* ================================
+         p5 lifecycle
+      ================================ */
+
+      function preload() {
+        letterFont = loadFont(FONT_URL);
+      }
+
+      function setup() {
+        createCanvas(windowWidth, windowHeight);
+        colorMode(RGB, 255);
+        background("#c5c5c5");
+        noStroke();
+
+        effectiveVertexDistance = vertexDistanceRel * min(width, height);
+        MOUSE_RADIUS = min(width, height) * 0.18;
+
+        autoPointer = new SpringPointer(width / 2, height / 2);
+        manualPointer = new SpringPointer(width / 2, height / 2);
+
+        buildLetters();
+      }
+
+      function windowResized() {
+        resizeCanvas(windowWidth, windowHeight);
+        background("#c5c5c5");
+        effectiveVertexDistance = vertexDistanceRel * min(width, height);
+        MOUSE_RADIUS = min(width, height) * 0.18;
+        buildLetters();
+      }
+
+      /* ================================
+         Touch handlers (for iPhone / mobile)
+      ================================ */
+
+      function touchStarted() {
+        if (touches.length > 0) {
+          hasTouch = true;
+          const t = touches[0];
+          manualPointer.updateFromMouse(t.x, t.y);
+        }
+        return false; // prevent scrolling
+      }
+
+      function touchMoved() {
+        if (touches.length > 0) {
+          hasTouch = true;
+          const t = touches[0];
+          manualPointer.updateFromMouse(t.x, t.y);
+        }
+        return false; // prevent scrolling
+      }
+
+      function touchEnded() {
+        if (touches.length === 0) {
+          hasTouch = false;
+        }
+        return false;
+      }
+
+      /* ================================
+         Build per-letter blobs
+      ================================ */
+
+      function buildLetters() {
+        springs = [];
+        blobs = [];
+
+        const minLength = min(width, height);
+        const radius = minLength * 0.16;
+        const fontSize = radius * SCALE_MULTIPLIER;
+
+        const text = TEXT_STRING;
+        const chars = text.split("");
+
+        const charInfos = chars.map((ch) => {
+          if (ch === " ")
+            return { char: " ", width: radius * 0.8, isSpace: true };
+          const b = letterFont.textBounds(ch, 0, 0, fontSize);
+          return { char: ch, width: b.w, isSpace: false };
+        });
+
+        const LETTER_GAP = radius * 0.25;
+
+        let totalW = 0;
+        for (let i = 0; i < charInfos.length; i++) {
+          totalW += charInfos[i].width;
+          if (i < charInfos.length - 1) totalW += LETTER_GAP;
+        }
+
+        const targetWidth = totalW * 0.9;
+        const scaleX = targetWidth / totalW;
+
+        const lineStartX = (width - targetWidth) / 2;
+        const baseY = height * 0.55;
+
+        textLeft = lineStartX;
+        textRight = lineStartX + targetWidth;
+        textBaseY = baseY;
+
+        let xCursor = 0;
+        for (let i = 0; i < charInfos.length; i++) {
+          const info = charInfos[i];
+          if (info.isSpace) {
+            xCursor += info.width;
+            if (i < charInfos.length - 1) xCursor += LETTER_GAP;
+            continue;
+          }
+
+          const cx = lineStartX + (xCursor + info.width / 2) * scaleX;
+
+          const blobLoops = generateLetterLoops(
+            cx,
+            baseY,
+            radius,
+            info.char,
+            fontSize
+          );
+          blobs.push({ loops: blobLoops });
+
+          blobLoops.forEach((loop) => {
+            loop.forEach((s) => springs.push(s));
+          });
+
+          xCursor += info.width;
+          if (i < charInfos.length - 1) xCursor += LETTER_GAP;
+        }
+
+        blobs.forEach((blob) => {
+          blob.loops.forEach((loop) => {
+            const len = loop.length;
+            if (len < 2) return;
+            for (let i = 0; i < len; i++) {
+              const curr = loop[i];
+              const prev = loop[(i - 1 + len) % len];
+              const next = loop[(i + 1) % len];
+              curr.addAttractor(prev);
+              curr.addAttractor(next);
+            }
+          });
+        });
+      }
+
+      function generateLetterLoops(offsetX, offsetY, radius, letter, fontSize) {
+        const bounds = letterFont.textBounds(letter, 0, 0, fontSize);
+        const bx = bounds.x;
+        const by = bounds.y;
+        const bw = bounds.w;
+        const bh = bounds.h;
+
+        const rawPoints = letterFont.textToPoints(letter, 0, 0, fontSize, {
+          sampleFactor: 0.6,
+          simplifyThreshold: 0,
+        });
+
+        const allLoops = [];
+        let currentLoop = [];
+        let lastRaw = null;
+
+        const breakThreshold = effectiveVertexDistance * 8;
+
+        for (let i = 0; i < rawPoints.length; i++) {
+          const pt = rawPoints[i];
+
+          if (lastRaw) {
+            const rawD = dist(lastRaw.x, lastRaw.y, pt.x, pt.y);
+            if (rawD > breakThreshold && currentLoop.length > 0) {
+              allLoops.push(currentLoop);
+              currentLoop = [];
+            }
+          }
+          lastRaw = { x: pt.x, y: pt.y };
+
+          const px = pt.x - bx - bw * 0.5 + offsetX;
+          const py = pt.y - by - bh * 0.5 + offsetY;
+
+          const PARTICLE_SPACING = effectiveVertexDistance * 1.0;
+
+          if (currentLoop.length === 0) {
+            const s = new Spring({
+              x: px,
+              y: py,
+              elasticity: random(0.02, 0.04),
+              damping: random(0.7, 0.8),
+            });
+            currentLoop.push(s);
+          } else {
+            const last = currentLoop[currentLoop.length - 1];
+            const d = dist(last.x, last.y, px, py);
+            if (d >= PARTICLE_SPACING) {
+              const s = new Spring({
+                x: px,
+                y: py,
+                elasticity: random(0.02, 0.04),
+                damping: random(0.7, 0.8),
+              });
+              currentLoop.push(s);
+            }
+          }
+        }
+
+        if (currentLoop.length > 0) allLoops.push(currentLoop);
+
+        const processedLoops = allLoops.filter((loop) => loop.length >= 3);
+        return processedLoops;
+      }
+
+      /* ================================
+         Draw (AUTO WANDERING + SOFT BURSTS + TOUCH)
+      ================================ */
+
+      function draw() {
+        background("#c5c5c5");
+
+        const t = frameCount * 0.01;
+
+        // --- BURST LOGIC ---
+        // Burst ON roughly every 5 seconds, lasting ~1 second
+        const burstCycle = frameCount % 300; // 300 frames ≈ 5s @ 60fps
+        const burstActive = burstCycle < 60; // 60 frames ≈ 1s
+
+        // Softer multipliers
+        const jitterMult = burstActive ? 1.0 : 0.4;
+        const waveMult = burstActive ? 1.4 : 1.0;
+
+        const span = textRight - textLeft;
+        const margin = span * 0.2;
+        const sweepLeft = textLeft - margin;
+        const sweepRight = textRight + margin;
+
+        // Back-and-forth horizontal motion
+        const backForth = 0.5 + 0.5 * sin(t * 0.7 * waveMult);
+        let vx = lerp(sweepLeft, sweepRight, backForth);
+
+        // Noisy horizontal wander (reduced)
+        const jitterX = (noise(t * 0.6) - 0.5) * span * 0.15 * jitterMult;
+        vx += jitterX;
+
+        // Vertical path: gentler wobble
+        const baseY = textBaseY;
+        const waveY = sin(t * 1.1 * waveMult) * span * 0.05;
+        const noiseY = (noise(t * 0.8 + 50.0) - 0.5) * span * 0.1 * jitterMult;
+        const vy = baseY + waveY + noiseY;
+
+        // Update auto pointer along its path
+        autoPointer.updateFromMouse(vx, vy);
+
+        // --- REAL MOUSE / TOUCH ---
+        if (hasTouch && touches.length > 0) {
+          const t0 = touches[0];
+          manualPointer.updateFromMouse(t0.x, t0.y);
+        } else {
+          // desktop or when iOS maps touch to mouseX/mouseY
+          manualPointer.updateFromMouse(mouseX, mouseY);
+        }
+
+        // Apply both pointers
+        for (let i = 0; i < springs.length; i++) {
+          springs[i].update(autoPointer, manualPointer);
+        }
+
+        for (let b = 0; b < blobs.length; b++) {
+          drawLetterBlob(blobs[b]);
+        }
+      }
+
+      function drawLetterBlob(blob) {
+        if (!blob.loops || blob.loops.length === 0) return;
+
+        const contours = [];
+
+        for (let li = 0; li < blob.loops.length; li++) {
+          const contour = blob.loops[li];
+          if (contour.length < 3) continue;
+
+          const len = contour.length;
+          let smooth = new Array(len);
+
+          for (let i = 0; i < len; i++) {
+            const p = contour[i];
+            smooth[i] = { x: p.x, y: p.y };
+          }
+
+          const passes = 4;
+          for (let k = 0; k < passes; k++) {
+            const tmp = new Array(len);
+            for (let i = 0; i < len; i++) {
+              const prev = smooth[(i - 1 + len) % len];
+              const curr = smooth[i];
+              const next = smooth[(i + 1) % len];
+              tmp[i] = {
+                x: (prev.x + curr.x * 2 + next.x) / 4,
+                y: (prev.y + curr.y * 2 + next.y) / 4,
+              };
+            }
+            smooth = tmp;
+          }
+
+          const curvePts = [];
+          curvePts.push(smooth[len - 2]);
+          curvePts.push(smooth[len - 1]);
+          for (let i = 0; i < len; i++) {
+            curvePts.push(smooth[i]);
+          }
+          curvePts.push(smooth[0]);
+          curvePts.push(smooth[1]);
+
+          contours.push(curvePts);
+        }
+
+        if (!contours.length) return;
+
+        const ctx = drawingContext;
+        ctx.save();
+        ctx.fillStyle = "#F7EAAC";
+        ctx.beginPath();
+
+        contours.forEach((curvePts) => {
+          if (!curvePts.length) return;
+          ctx.moveTo(curvePts[0].x, curvePts[0].y);
+          for (let i = 1; i < curvePts.length; i++) {
+            const pt = curvePts[i];
+            ctx.lineTo(pt.x, pt.y);
+          }
+          ctx.closePath();
+        });
+
+        ctx.fill("evenodd");
+        ctx.restore();
+      }
+    </script>
+  </body>
+</html>

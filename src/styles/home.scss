@@ -29,6 +29,18 @@ body {
   flex-direction: column;
   justify-content: center;
 }
+.top-left-panel {
+  /* Use fixed positioning to keep it visible as the user scrolls */
+  position: fixed;
+  top: 20px; /* Distance from the top of the viewport */
+  left: 20px; /* Distance from the left of the viewport */
+  z-index: 100; /* Ensure it's above content */
+
+  /* Use Flexbox to align the menu and the link horizontally */
+  display: flex;
+  align-items: center; /* Vertically center them */
+  gap: 15px; /* Adjust the space between the menu and the link */
+}
 
 .menu-wrapper {
   position: absolute;
@@ -37,6 +49,21 @@ body {
   width: 55px;
   height: 100px;
   left: 40px;
+}
+
+.templates-out-now-mobile {
+  display: none;
+}
+
+.templates-out-now-desktop {
+  /* Your desktop positioning and styling here */
+  position: absolute; /* Or absolute, matching your ElasticMenu */
+  top: 70px;
+  right: 70px; /* Adjust based on menu size */
+  z-index: 100;
+  color: #f3e4a2;
+  font-size: 25pt;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 .intro-text {
@@ -108,6 +135,21 @@ body {
   .squishy-frame {
     width: 100%;
     height: 500px; /* ✅ iframe fills the tall area */
+  }
+
+  .templates-out-now-desktop {
+    display: none;
+  }
+
+  .templates-out-now-mobile {
+    display: block; /* Or flex/inline-block, depending on needed layout */
+    /* Your mobile positioning and styling here */
+    position: absolute;
+    top: 35px; /* Adjust top padding */
+    left: 100px; /* Adjust left padding */
+    z-index: 100;
+    color: #f3e4a2;
+    font-size: 15pt;
   }
 }
 

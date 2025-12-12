@@ -1,16 +1,14 @@
 // src/components/VideoCloth.jsx
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 // NOTE: External dependencies (THREE, CANNON, etc.) are kept via Skypack for consistency.
-// In a real project, bundling them with a tool like Webpack/Vite would be more efficient.
-import * as THREE from "https://cdn.skypack.dev/three@0.124.0";
+// FIX: Explicitly linking to three.module.js and adding .js extensions to Three.js examples
+import * as THREE from "https://cdn.skypack.dev/three@0.124.0/build/three.module.js";
 import * as CANNON from "https://cdn.skypack.dev/cannon-es@0.18.0";
-// Removed unused imports (ky, SimplexNoise) from the original imports list if they aren't used elsewhere.
 import imagesLoaded from "https://cdn.skypack.dev/imagesloaded@4.1.4";
-import { OrbitControls } from "https://cdn.skypack.dev/three@0.124.0/examples/jsm/controls/OrbitControls";
-import Stats from "https://cdn.skypack.dev/three@0.124.0/examples/jsm/libs/stats.module";
-// Removed unused dat.gui
-import { EffectComposer } from "https://cdn.skypack.dev/three@0.124.0/examples/jsm/postprocessing/EffectComposer";
+import { OrbitControls } from "https://cdn.skypack.dev/three@0.124.0/examples/jsm/controls/OrbitControls.js";
+import Stats from "https://cdn.skypack.dev/three@0.124.0/examples/jsm/libs/stats.module.js";
+import { EffectComposer } from "https://cdn.skypack.dev/three@0.124.0/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "https://cdn.skypack.dev/three@0.124.0/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "https://cdn.skypack.dev/three@0.124.0/examples/jsm/postprocessing/ShaderPass.js";
 import gsap from "https://cdn.skypack.dev/gsap@3.6.1";
@@ -21,7 +19,7 @@ import {
   getScreenFov,
 } from "https://cdn.skypack.dev/maku.js@1.0.1";
 
-/* ================== SHADERS (Unchanged for visual consistency) ================== */
+/* ================== SHADERS ================== */
 
 const mainVertexShader = `
 varying vec2 vUv;
@@ -32,7 +30,7 @@ void main(){
     vec4 viewPosition = viewMatrix * modelPosition;
     vec4 projectedPosition = projectionMatrix * viewPosition;
     gl_Position = projectedPosition;
-    
+
     vUv = uv;
     vPosition = position;
 }
@@ -62,7 +60,7 @@ void main(){
     vec4 viewPosition = viewMatrix * modelPosition;
     vec4 projectedPosition = projectionMatrix * viewPosition;
     gl_Position = projectedPosition;
-    
+
     vUv = uv;
 }
 `;
@@ -99,35 +97,51 @@ const preloadImages = (sel = "img") => {
 
 /* ================== CORE CLASSES ================== */
 
-// 🔥 EFFICIENCY: Single, shared MouseTracker instance.
-// Removed trackMouseSpeed as it was unused outside of the class itself.
+// Mouse tracker with delta (for smear-style interaction)
 class MouseTracker {
   constructor() {
     this.mousePos = new THREE.Vector2(0, 0);
-    this.trackMousePos(); // Start tracking on instantiation
+    this.delta = new THREE.Vector2(0, 0);
+    this._hasPos = false;
+    this.trackMousePos();
   }
+
   trackMousePos() {
-    // Only set up listeners once
-    window.addEventListener("mousemove", this.setMousePos.bind(this));
+    const handler = (e) => this.setMousePos(e);
+
+    window.addEventListener("mousemove", handler);
     window.addEventListener(
       "touchstart",
       (e) => {
-        this.setMousePos(e.touches[0]);
+        if (e.touches && e.touches[0]) this.setMousePos(e.touches[0]);
       },
       { passive: false }
     );
-    window.addEventListener("touchmove", (e) => {
-      this.setMousePos(e.touches[0]);
-    });
+    window.addEventListener(
+      "touchmove",
+      (e) => {
+        if (e.touches && e.touches[0]) this.setMousePos(e.touches[0]);
+      },
+      { passive: false }
+    );
   }
+
   setMousePos(e) {
     const { x, y } = getNormalizedMousePos(e);
-    this.mousePos.x = x;
-    this.mousePos.y = y;
+
+    if (!this._hasPos) {
+      this.mousePos.set(x, y);
+      this.delta.set(0, 0);
+      this._hasPos = true;
+    } else {
+      // delta = newPos - oldPos
+      this.delta.set(x - this.mousePos.x, y - this.mousePos.y);
+      this.mousePos.set(x, y);
+    }
   }
 }
 
-// 🔥 EFFICIENCY: Create a single instance to be shared across all components
+// Single shared instance for mouse tracking (efficiency improvement)
 const GLOBAL_MOUSE_TRACKER = new MouseTracker();
 
 class Base {
@@ -150,7 +164,6 @@ class Base {
       alpha: true,
       antialias: true,
     };
-    // Use the global tracker instance
     this.mouseTracker = GLOBAL_MOUSE_TRACKER;
     this.scene = null;
     this.camera = null;
@@ -160,16 +173,36 @@ class Base {
     this.shaderMaterial = null;
     this.composer = null;
   }
-  // ... rest of Base methods (unchanged)
+
   init() {
     this.createScene();
     this.createPerspectiveCamera();
     this.createRenderer();
     this.createLight();
-    this.createOrbitControls();
+    // this.createOrbitControls();
     this.createDebugUI();
     this.addListeners();
     this.setLoop();
+  }
+
+  dispose() {
+    if (this.renderer) {
+      this.renderer.setAnimationLoop(null);
+      this.renderer.dispose();
+      if (this.renderer.domElement?.parentNode) {
+        this.renderer.domElement.parentNode.removeChild(
+          this.renderer.domElement
+        );
+      }
+    }
+    window.removeEventListener("resize", this.resizeHandler);
+    this.scene = null;
+    this.camera = null;
+    this.renderer = null;
+    this.controls = null;
+    this.stats = null;
+    this.shaderMaterial = null;
+    this.composer = null;
   }
 
   createScene() {
@@ -191,7 +224,8 @@ class Base {
     const renderer = new THREE.WebGLRenderer(rendererParams);
     renderer.setClearColor(0x000000, 0);
 
-    // 🔥 force canvas DOM size to follow the container
+    renderer.domElement.style.position = "absolute";
+    renderer.domElement.style.inset = 0;
     renderer.domElement.style.width = "100%";
     renderer.domElement.style.height = "100%";
     renderer.domElement.style.display = "block";
@@ -239,7 +273,7 @@ class Base {
   }
 
   addListeners() {
-    window.addEventListener("resize", () => {
+    this.resizeHandler = () => {
       if (!this.container) return;
       const aspect = calcAspect(this.container);
       const camera = this.camera;
@@ -254,7 +288,8 @@ class Base {
           this.container.clientHeight
         );
       }
-    });
+    };
+    window.addEventListener("resize", this.resizeHandler);
   }
 
   update() {}
@@ -264,11 +299,8 @@ class Base {
       this.update();
       if (this.controls) this.controls.update();
       if (this.stats) this.stats.update();
-      if (this.composer) {
-        this.composer.render();
-      } else {
-        this.renderer.render(this.scene, this.camera);
-      }
+      if (this.composer) this.composer.render();
+      else this.renderer.render(this.scene, this.camera);
     });
   }
 }
@@ -284,7 +316,6 @@ class PhysicsBase extends Base {
   createWorld() {
     const world = new CANNON.World();
     const solver = new CANNON.GSSolver();
-    // 🔥 EFFICIENCY: Reduce iterations from 20 to 12.
     solver.iterations = 12;
     solver.tolerance = 1e-3;
     world.solver = solver;
@@ -294,7 +325,6 @@ class PhysicsBase extends Base {
 
   update() {
     this.sync();
-    // Physics step is fixed at 1/60 for stability
     this.world.step(1 / 60);
   }
 
@@ -313,7 +343,6 @@ class ClothMaku extends Maku {
     this.world = world;
     this.stitches = [];
 
-    // 🔥 Force cloth size to match its allocated video/card area
     const container =
       this.el.closest(".project-media") ||
       this.el.closest(".image-cloth-instance") ||
@@ -329,18 +358,15 @@ class ClothMaku extends Maku {
       const sx = cw / rw;
       const sy = ch / rh;
 
-      // scale the mesh so its width/height == container width/height
       this.mesh.scale.set(
         this.mesh.scale.x * sx,
         this.mesh.scale.y * sy,
         this.mesh.scale.z
       );
 
-      // update rect so downstream physics/camera use the new size
       this.rect.width = cw;
       this.rect.height = ch;
 
-      // center it in the local scene so the camera can look at (0,0,0)
       this.mesh.position.set(0, 0, 0);
     }
 
@@ -366,25 +392,22 @@ class ClothMaku extends Maku {
       const { row, col } = this.getPositionRowCol(i, gridSize);
       const last = gridSize;
 
-      // base position (flat plane)
       const pos = new CANNON.Vec3(
         position.getX(i) * width,
         position.getY(i) * height,
         position.getZ(i)
       );
 
-      // 🔹 VERY SUBTLE INWARD CURVE
       const centerRow = segments.height / 2;
       const centerCol = segments.width / 2;
 
-      const nx = (col - centerCol) / centerCol; // -1 .. 1
-      const ny = (row - centerRow) / centerRow; // -1 .. 1
-      const dist = Math.sqrt(nx * nx + ny * ny); // 0 center -> ~1 edges
+      const nx = (col - centerCol) / centerCol;
+      const ny = (row - centerRow) / centerRow;
+      const dist = Math.sqrt(nx * nx + ny * ny);
 
-      const bulgeStrength = 4; // ⬅️ was 35 — smaller = less curve
+      const bulgeStrength = 4;
       const bulge = (1.0 - Math.min(dist, 1.0)) * bulgeStrength;
 
-      // negative Z = inward/away from camera
       pos.z -= bulge;
 
       const isCorner =
@@ -393,13 +416,9 @@ class ClothMaku extends Maku {
         !isCorner && (row === 0 || row === last || col === 0 || col === last);
 
       let mass;
-      if (isCorner) {
-        mass = 0; // pinned corners
-      } else if (isEdge) {
-        mass = 0.001;
-      } else {
-        mass = 0.0002;
-      }
+      if (isCorner) mass = 0;
+      else if (isEdge) mass = 0.001;
+      else mass = 0.0002;
 
       const stitch = new CANNON.Body({
         mass,
@@ -427,23 +446,55 @@ class ClothMaku extends Maku {
     [...Array(position.count).keys()].forEach((i) => {
       const gridSize = segments.width;
       const { row, col } = this.getPositionRowCol(i, gridSize);
-      if (col < gridSize) {
-        this.connect(this.stitches[i], this.stitches[i + 1]);
-      }
-      // Fixed vertical constraint index
-      if (row < gridSize) {
+      if (col < gridSize) this.connect(this.stitches[i], this.stitches[i + 1]);
+      if (row < gridSize)
         this.connect(this.stitches[i], this.stitches[i + gridSize + 1]);
-      }
     });
   }
 
-  // 🔥 EFFICIENCY: Use a traditional 'for' loop for marginal gain
+  applyMouseStretch(mouseTracker) {
+    if (!mouseTracker || !mouseTracker._hasPos) return;
+    if (!this.stitches || !this.stitches.length) return;
+
+    const { rect, stitches } = this;
+    const w = rect.width || 1;
+    const h = rect.height || 1;
+
+    const mx = mouseTracker.mousePos.x * (w / 2);
+    const my = mouseTracker.mousePos.y * (h / 2);
+
+    const radius = Math.min(w, h) * 0.01;
+
+    const dxNorm = mouseTracker.delta.x;
+    const dyNorm = mouseTracker.delta.y;
+    if (dxNorm === 0 && dyNorm === 0) return;
+
+    const baseStrength = 80;
+    const fxBase = dxNorm * baseStrength;
+    const fyBase = -dyNorm * baseStrength;
+
+    for (let i = 0; i < stitches.length; i++) {
+      const s = stitches[i];
+      const sx = s.position.x;
+      const sy = s.position.y;
+
+      const dx = sx - mx;
+      const dy = sy - my;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > radius) continue;
+
+      const falloff = 1 - dist / radius;
+
+      const force = new CANNON.Vec3(fxBase * falloff, fyBase * falloff, 0);
+      s.applyForce(force);
+    }
+  }
+
   update() {
     const { mesh, rect, stitches } = this;
     const { width, height } = rect;
     const position = mesh.geometry.attributes.position;
 
-    // safety: avoid divide-by-0 if something is weird
     const w = width || 1;
     const h = height || 1;
     const count = position.count;
@@ -452,8 +503,7 @@ class ClothMaku extends Maku {
       const stitch = stitches[i];
       const sx = stitch.position.x / w;
       const sy = stitch.position.y / h;
-      let sz = stitch.position.z;
-
+      const sz = stitch.position.z;
       position.setXYZ(i, sx, sy, sz);
     }
 
@@ -475,7 +525,7 @@ class ClothMaku extends Maku {
 class Wind {
   constructor(maku, mouseTracker, config = {}) {
     this.maku = maku;
-    this.mouseTracker = mouseTracker; // 🔥 EFFICIENCY: Injected tracker
+    this.mouseTracker = mouseTracker;
 
     const {
       baseForce = 2,
@@ -487,41 +537,36 @@ class Wind {
     const position = maku.mesh.geometry.attributes.position;
     const count = position.count;
     const force = baseForce / count;
-    const clock = new THREE.Clock();
     const flowField = new Array(count);
 
     this.flowField = flowField;
     this.off = off;
     this.force = force;
-    this.clock = clock;
     this.direction = direction;
     this.seed = seed;
     this.time = 0;
 
-    const noise = new SimplexNoise();
-    this.noise = noise;
+    this.noise = new SimplexNoise();
 
     this.update();
     this.directionFollowMouse();
   }
 
-  // 🔥 EFFICIENCY: Decouple wind calculation from the 60fps render loop
   update() {
-    this.time += 1 / 60; // Use fixed physics time step for stability
+    this.time += 1 / 60;
 
     const { maku, off, seed } = this;
     const position = maku.mesh.geometry.attributes.position;
     const size = maku.segments.width;
     const count = position.count;
 
-    // 🔥 EFFICIENCY: Use 'for' loop for sequential array writes
     for (let i = 0; i < count; i++) {
       const { row, col } = this.maku.getPositionRowCol(i, size);
 
       const force = this.noise.noise3D(
         row * off + seed,
         col * off + seed,
-        this.time + seed * 0.1 // Use this.time instead of clock.getElapsedTime()
+        this.time + seed * 0.1
       );
 
       const centeredForce = 0.5 * force + 0.5;
@@ -531,7 +576,6 @@ class Wind {
     }
   }
 
-  // 🔥 EFFICIENCY: Listener only added once here per Wind instance
   directionFollowMouse() {
     window.addEventListener("mousemove", () => {
       const mousePos = this.mouseTracker.mousePos;
@@ -572,10 +616,10 @@ class ImageCloth extends PhysicsBase {
       direction: new THREE.Vector3(0.5, 0, -0.1),
     };
 
-    // 🔥 EFFICIENCY: Variable to control wind update frequency (e.g., update every 3 frames)
     this.windUpdateFrameCount = 0;
-    this.windUpdateFrequency = 3; // Lower this number for more frequent/responsive wind
+    this.windUpdateFrequency = 3;
   }
+
   async init() {
     if (!this.container) return;
     this.createWorld();
@@ -583,17 +627,14 @@ class ImageCloth extends PhysicsBase {
     this.createPerspectiveCamera();
     this.createRenderer();
 
-    // 🎯 FIX for CSS/Sizing: Re-sizing the renderer immediately before object creation
-    // ensures the WebGL canvas dimensions match the container's final CSS-defined size.
     this.resizeRendererToDisplaySize();
 
-    // 🔥 EFFICIENCY: Removed preloadImages("img") as it only uses video texture
-    this.createEverything();
+    await this.createEverything();
     this.addListeners();
     this.setLoop();
   }
 
-  createEverything() {
+  async createEverything() {
     this.createShaderMaterial();
     this.createMakuGroup();
     this.createWinds();
@@ -628,26 +669,22 @@ class ImageCloth extends PhysicsBase {
       (el) =>
         new ClothMaku(el, shaderMaterial, scene, world, {
           meshSizeType: "scale",
-          // 🔥 EFFICIENCY: Reduced segments to 6x6.
           segments: {
-            width: 6, // Reduced from 8
-            height: 6, // Reduced from 8
+            width: 6,
+            height: 6,
           },
         })
     );
     this.makuGroup.addMultiple(makus);
     this.overrideTexturesFromInner();
 
-    // 🔥 Camera: fit cloth to the canvas (card) exactly
     const first = makus[0];
     if (first && this.camera && container) {
       const cw = container.clientWidth || window.innerWidth;
       const ch = container.clientHeight || window.innerHeight;
 
-      // 🎯 FIX for Mobile Cropping: Explicitly update the camera's aspect ratio
-      // to match the container's final CSS aspect (which is tall/narrow on mobile)
       this.camera.aspect = cw / ch;
-      this.camera.updateProjectionMatrix(); // Apply the new aspect ratio immediately
+      this.camera.updateProjectionMatrix();
 
       const aspect = cw / ch;
 
@@ -659,10 +696,8 @@ class ImageCloth extends PhysicsBase {
 
       const distH = clothHeight / 2 / Math.tan(fovRad / 2);
       const distW = clothWidth / 2 / (Math.tan(fovRad / 2) * aspect);
-      // Use the greater distance to ensure the whole object fits in the frame
       const distance = Math.max(distH, distW);
 
-      // look at cloth center (we set mesh.position to 0,0,0 above)
       this.camera.position.set(0, 0, distance * 1.02);
       this.lookAtPosition.set(0, 0, 0);
       this.camera.lookAt(0, 0, 0);
@@ -675,6 +710,7 @@ class ImageCloth extends PhysicsBase {
     this.makuGroup.makus.forEach((maku) => {
       const el = maku.el;
       const inner = el.dataset.inner;
+      const poster = el.dataset.poster; // NEW
       const material = maku.mesh.material;
 
       if (!inner || !material.uniforms || !material.uniforms.uTexture) return;
@@ -693,35 +729,74 @@ class ImageCloth extends PhysicsBase {
       if (tag === "video") {
         const video = el;
 
-        // IMPORTANT: allow canvas texture, avoid CORS black
         video.crossOrigin = "anonymous";
         video.src = inner;
         video.muted = true;
         video.loop = true;
         video.autoplay = true;
         video.playsInline = true;
+        // Helps Safari/iOS behave more consistently
+        video.setAttribute("playsinline", "");
+        video.setAttribute("webkit-playsinline", "");
+        video.preload = "auto";
+
+        // 1) Immediately show poster texture on the cloth while video buffers (KEY FIX)
+        if (poster) {
+          loader.load(
+            poster,
+            (tex) => {
+              tex.minFilter = THREE.LinearFilter;
+              tex.magFilter = THREE.LinearFilter;
+              tex.needsUpdate = true;
+              material.uniforms.uTexture.value = tex;
+            },
+            undefined,
+            () => {
+              // ignore poster load errors; we’ll still try video
+            }
+          );
+        }
+
+        const setupVideoTexture = () => {
+          const videoTexture = new THREE.VideoTexture(video);
+          videoTexture.minFilter = THREE.LinearFilter;
+          videoTexture.magFilter = THREE.LinearFilter;
+          videoTexture.format = THREE.RGBFormat;
+          material.uniforms.uTexture.value = videoTexture;
+        };
+
+        const videoReady = new Promise((resolve) => {
+          if (video.readyState >= 2) resolve(); // HAVE_CURRENT_DATA
+          else {
+            video.addEventListener("loadeddata", resolve, { once: true });
+            video.addEventListener("canplay", resolve, { once: true });
+            video.addEventListener("canplaythrough", resolve, { once: true });
+          }
+        });
+
+        videoReady
+          .then(() => {
+            return video.play().catch((e) => {
+              // If autoplay fails, still set the texture (it’ll update after user gesture)
+              console.warn("Autoplay failed; using VideoTexture anyway:", e);
+            });
+          })
+          .then(() => {
+            setupVideoTexture();
+          })
+          .catch((e) => {
+            console.error("Video failed to load:", e);
+          });
 
         video.load();
-        video.play().catch(() => {});
-
-        // Three.js texture creation is relatively efficient
-        const videoTexture = new THREE.VideoTexture(video);
-        videoTexture.minFilter = THREE.LinearFilter;
-        videoTexture.magFilter = THREE.LinearFilter;
-        videoTexture.format = THREE.RGBFormat;
-
-        material.uniforms.uTexture.value = videoTexture;
       }
     });
   }
 
   createWinds() {
-    // 🔥 EFFICIENCY: Pass the single shared MouseTracker instance
-    const winds = this.makuGroup.makus.map((maku) => {
-      const wind = new Wind(maku, this.mouseTracker, this.windConfig);
-      return wind;
-    });
-    this.winds = winds;
+    this.winds = this.makuGroup.makus.map(
+      (maku) => new Wind(maku, this.mouseTracker, this.windConfig)
+    );
   }
 
   createPostprocessingEffect() {
@@ -744,6 +819,7 @@ class ImageCloth extends PhysicsBase {
         },
       },
     });
+
     customPass.renderToScreen = true;
     this.customPass = customPass;
     composer.addPass(customPass);
@@ -753,39 +829,40 @@ class ImageCloth extends PhysicsBase {
 
   updatePassTime() {
     if (!this.customPass) return;
-    const uniforms = this.customPass.uniforms;
-    const elapsedTime = this.clock.getElapsedTime();
-    uniforms.uTime.value = elapsedTime;
+    this.customPass.uniforms.uTime.value = this.clock.getElapsedTime();
   }
 
   updateMaterialUniforms() {
-    const elapsedTime = this.clock.getElapsedTime();
+    const t = this.clock.getElapsedTime();
     this.makuGroup.makus.forEach((maku) => {
-      // Direct access is fine and avoids re-calling the getter
       const uniforms = maku.mesh.material.uniforms;
-      uniforms.uTime.value = elapsedTime;
+      uniforms.uTime.value = t;
     });
   }
 
   updateMakuGroup() {
-    this.makuGroup.makus.forEach((maku) => {
-      maku.update();
-    });
+    this.makuGroup.makus.forEach((maku) => maku.update());
   }
 
   updateWinds() {
-    // 🔥 EFFICIENCY: Run wind update only every N frames
     if (this.windUpdateFrameCount % this.windUpdateFrequency === 0) {
-      this.winds.forEach((wind) => {
-        wind.update();
-      });
+      this.winds.forEach((wind) => wind.update());
     }
-    this.windUpdateFrameCount = (this.windUpdateFrameCount + 1) % 60; // Loop frame count
+    this.windUpdateFrameCount = (this.windUpdateFrameCount + 1) % 60;
   }
 
   applyWindToMakus() {
-    this.makuGroup.makus.forEach((maku, i) => {
-      maku.applyWind(this.winds[i]);
+    this.makuGroup.makus.forEach((maku, i) => maku.applyWind(this.winds[i]));
+  }
+
+  applyMouseStretchToMakus() {
+    const tracker = this.mouseTracker;
+    if (!tracker) return;
+
+    this.makuGroup.makus.forEach((maku) => {
+      if (typeof maku.applyMouseStretch === "function") {
+        maku.applyMouseStretch(tracker);
+      }
     });
   }
 
@@ -793,17 +870,16 @@ class ImageCloth extends PhysicsBase {
     this.updatePassTime();
     this.updateMaterialUniforms();
 
-    // The order here is crucial for the cloth simulation stability
-    this.sync();
-    this.world.step(1 / 60);
-    this.updateMakuGroup();
-    // 🔥 EFFICIENCY: Winds are now updated only once every 3 frames
     this.updateWinds();
     this.applyWindToMakus();
+    this.applyMouseStretchToMakus();
+
+    this.world.step(1 / 60);
+    this.updateMakuGroup();
   }
 }
 
-/* ================== REACT COMPONENT (Unchanged - already good React practice) ================== */
+/* ================== REACT COMPONENT ================== */
 
 export default function VideoCloth({
   videoSrc,
@@ -811,32 +887,88 @@ export default function VideoCloth({
   title,
   description,
   children,
+  posterSrc,
 }) {
   const containerRef = useRef(null);
   const videoRef = useRef(null);
 
+  const [isVisible, setIsVisible] = useState(false);
+  const [clothReady, setClothReady] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+
+  const clothRef = useRef(null);
+
+  // 1) Intersection Observer: only initialize when near viewport
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) setIsVisible(true);
+      },
+      { rootMargin: "200px" }
+    );
+
+    if (containerRef.current) observer.observe(containerRef.current);
+
+    return () => {
+      if (containerRef.current) observer.unobserve(containerRef.current);
+      observer.disconnect();
+    };
+  }, []);
+
+  // 2) Track when the <video> actually has data
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+
+    setVideoReady(false);
+
+    const markReady = () => setVideoReady(true);
+    const markNotReady = () => setVideoReady(false);
+
+    v.addEventListener("loadeddata", markReady);
+    v.addEventListener("canplay", markReady);
+    v.addEventListener("canplaythrough", markReady);
+    v.addEventListener("error", markNotReady);
+
+    return () => {
+      v.removeEventListener("loadeddata", markReady);
+      v.removeEventListener("canplay", markReady);
+      v.removeEventListener("canplaythrough", markReady);
+      v.removeEventListener("error", markNotReady);
+    };
+  }, [videoSrc]);
+
+  // 3) Initialize ImageCloth when visible
   useEffect(() => {
     const containerEl = containerRef.current;
     const videoEl = videoRef.current;
-    if (!containerEl || !videoEl) return;
 
-    const cloth = new ImageCloth(containerEl, [videoEl], false);
-    cloth.init();
+    if (isVisible && containerEl && videoEl && !clothRef.current) {
+      const cloth = new ImageCloth(containerEl, [videoEl], false);
+
+      cloth
+        .init()
+        .then(() => setClothReady(true))
+        .catch((e) => {
+          console.error("ImageCloth initialization failed:", e);
+          setClothReady(false);
+        });
+
+      clothRef.current = cloth;
+    }
 
     return () => {
-      if (cloth.renderer) {
-        cloth.renderer.setAnimationLoop(null);
-        cloth.renderer.dispose();
+      if (clothRef.current) {
+        clothRef.current.dispose();
+        clothRef.current = null;
       }
-      if (containerEl.firstChild) {
-        // Safe cleanup for the canvas element
-        containerEl.removeChild(containerEl.firstChild);
-      }
-      // Note: Event listeners added to window (like MouseTracker and Wind.directionFollowMouse)
-      // are not explicitly removed here, which can lead to memory leaks if the component is mounted/unmounted frequently.
-      // For full robustness, those listeners should be tracked and removed.
+      setClothReady(false);
+      setVideoReady(false);
     };
-  }, []); // Run only once on mount
+  }, [isVisible, videoSrc]);
+
+  // Only show WebGL once BOTH cloth + video have data
+  const showCanvas = clothReady && videoReady;
 
   return (
     <article className={`project-card ${className}`}>
@@ -845,12 +977,11 @@ export default function VideoCloth({
         style={{
           position: "relative",
           width: "100%",
-          // 3:4-ish frame; tweak as you like
           paddingBottom: "133%",
           overflow: "hidden",
         }}
       >
-        {/* WebGL canvas target – size == card */}
+        {/* WebGL canvas target */}
         <div
           ref={containerRef}
           className="image-cloth-instance"
@@ -860,30 +991,52 @@ export default function VideoCloth({
             width: "100%",
             height: "100%",
             overflow: "hidden",
+            opacity: showCanvas ? 1 : 0,
+            transition: "opacity 0.35s ease-in-out",
           }}
         />
 
-        {/* DOM <video> only used as texture source */}
+        {/* TEMP PHOTO overlay (always visible until canvas is truly ready) */}
+        {posterSrc && (
+          <img
+            src={posterSrc}
+            alt=""
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              opacity: showCanvas ? 0 : 1,
+              transition: "opacity 0.35s ease-in-out",
+            }}
+          />
+        )}
+
+        {/* Hidden DOM <video> used only as a texture source */}
         <video
           ref={videoRef}
           className="cloth-video"
           data-inner={videoSrc}
+          data-poster={posterSrc || ""} // used by ImageCloth to preload poster onto the cloth
           muted
           loop
           playsInline
+          preload="auto"
           style={{
             position: "absolute",
             inset: 0,
             width: "100%",
             height: "100%",
             display: "block",
-            opacity: 0, // keep it invisible, Three.js renders the cloth
+            opacity: 0,
+            pointerEvents: "none",
           }}
         />
       </div>
 
       {title && <h3 className="project-title">{title}</h3>}
-      {/* {description && <p className="project-desc">{description}</p>} */}
       {children}
     </article>
   );

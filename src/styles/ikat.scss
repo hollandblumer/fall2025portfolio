@@ -1,0 +1,421 @@
+/* ==========================================================================
+   Layout (match smear)
+   ========================================================================== */
+
+.single-template-container {
+  padding: 0 20px;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* wrapper = smear-wrapper */
+.ikat-text-effect-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  width: 100%;
+}
+
+/* controls = smear-controls */
+.ikat-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 54px;
+  width: 100%;
+  max-width: 960px;
+}
+
+/* row = smear-row */
+.ikat-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 24px;
+}
+
+.ikat-row-spaced {
+  margin-top: 4px;
+}
+
+.ikat-row-bottom {
+  justify-content: center;
+  margin-top: 48px;
+}
+
+/* Dropdown groups (like smear-group) */
+.ikat-group {
+  margin-top: 8px;
+}
+
+.ikat-group .ikat-row {
+  gap: 32px;
+  margin-top: 10px;
+}
+
+/* ==========================================================================
+   Controls (match smear)
+   ========================================================================== */
+
+.ikat-control {
+  min-width: 170px;
+  max-width: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.ikat-control-inline {
+  max-width: 240px;
+  align-items: flex-start;
+}
+
+.ikat-control-wide {
+  min-width: 100%;
+  max-width: none;
+}
+
+.ikat-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ikat-label {
+  font-weight: 500;
+}
+
+.ikat-value {
+  font-weight: 600;
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.ikat-helper {
+  font-size: 0.72rem;
+  text-transform: none;
+  opacity: 0.75;
+}
+
+/* Inputs */
+.ikat-control input[type="range"] {
+  width: 100%;
+  accent-color: #f7e9a9;
+}
+
+.ikat-control input[type="color"] {
+  height: 30px;
+  padding: 2px;
+}
+
+.ikat-controls textarea,
+.ikat-controls input[type="text"],
+.ikat-controls .ikat-select {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid #a5a5a5;
+  background: #f6f6f6;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.ikat-controls textarea {
+  border-radius: 8px;
+  min-height: 64px;
+  resize: vertical;
+}
+
+/* Buttons (match smear) */
+.ikat-reset-button,
+.ikat-export-button,
+.ikat-action-button {
+  border: 1px solid #a5a5a5;
+  background: #f9f9f9;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.ikat-reset-button {
+  padding: 9px 22px;
+}
+
+.ikat-export-button,
+.ikat-action-button {
+  padding: 8px 16px;
+}
+
+.ikat-action-button:disabled,
+.ikat-export-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ==========================================================================
+   Look select (centered + no bg/outline)
+   ========================================================================== */
+
+/* stack Look 1 + Look 2 on separate lines */
+.ikat-look-row {
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.ikat-look-option {
+  width: 100%;
+  max-width: 520px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  display: block;
+}
+
+.ikat-look-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  margin: 0 auto;
+  border: 1px solid #a5a5a5;
+}
+
+/* optional active “nudge” */
+.ikat-look-option--active .ikat-look-preview {
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   Step 3 dropdown headers (caret row)
+   ========================================================================== */
+
+.ikat-step-title--dropdown {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center; /* center the title itself */
+  gap: 10px;
+
+  width: 100%;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #333;
+  text-align: center;
+}
+
+.ikat-step-caret {
+  width: 18px;
+  display: inline-flex;
+  justify-content: center;
+  transition: transform 180ms ease;
+}
+
+.ikat-step-caret--open {
+  transform: rotate(180deg);
+}
+
+.ikat-dropdown-title {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   Canvas / Preview (match smear-canvas-wrapper)
+   ========================================================================== */
+
+/* This wrapper centers BOTH the canvas look and the DOM look */
+.ikat-display-area {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  position: relative;
+  text-align: center;
+  z-index: 1;
+}
+
+/* “inner” wrapper to center whatever renders */
+.ikat-canvas-inner {
+  display: inline-block;
+  margin: 0 auto;
+  transform-origin: top center;
+  max-width: 100%;
+}
+
+/* If a canvas exists, make it responsive like smear */
+.ikat-display-area canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+/* Multi-line preview center */
+.ikat-multiline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.ikat-line {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* Status overlay (optional, same as smear-status) */
+.ikat-status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  color: #a5a5a5;
+  pointer-events: none;
+}
+
+.ikat-status.error {
+  color: #ff6666;
+}
+
+/* ==========================================================================
+   Export / record section (match smear-export-controls)
+   ========================================================================== */
+
+.ikat-export-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  position: relative;
+  z-index: 5;
+  margin-top: 18px;
+}
+
+.ikat-export-note {
+  font-size: 0.8rem;
+  text-align: center;
+  opacity: 0.8;
+  position: relative;
+  z-index: 5;
+}
+
+.ikat-export-note span {
+  font-weight: 600;
+}
+
+.ikat-record-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ikat-record-duration {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ikat-record-label {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* ==========================================================================
+   Look select — fixed size, selectable
+   ========================================================================== */
+
+.ikat-look-row {
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+/* The clickable option */
+.ikat-look-option {
+  width: 100%;
+  max-width: 420px; /* SAME width for both */
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  padding: 0;
+  display: block;
+}
+
+/* The visible “button” */
+.ikat-look-preview {
+  width: 100%;
+  height: 72px; /* SAME height for both */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid #a5a5a5;
+  border-radius: 999px;
+  background: #fff;
+  background: none;
+
+  transition: border-color 160ms ease, transform 160ms ease,
+    background-color 160ms ease;
+}
+
+/* Hover affordance */
+.ikat-look-option:hover .ikat-look-preview {
+  border-color: #666;
+}
+
+/* Selected state */
+.ikat-look-option--active .ikat-look-preview {
+  border-color: #111;
+  background: none;
+}
+
+/* Keyboard focus (important for selectable feel) */
+.ikat-look-option:focus-visible .ikat-look-preview {
+  outline: 2px solid #111;
+  outline-offset: 4px;
+}
+
+/* Prevent text from stretching height */
+.ikat-look-preview > * {
+  max-height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.ikat-step-title {
+  text-align: center;
+}
+
+/* Space between dropdown header and its controls */
+.ikat-dropdown-body {
+  margin-top: 18px; /* ↑ increase this */
+  padding-top: 6px; /* optional: makes it feel less cramped */
+}
+
+/* Optional: extra space after the dropdown block (before next dropdown/header) */
+.ikat-dropdown-body {
+  margin-bottom: 22px; /* ↑ increase this if you want more separation */
+}
+
+/* Optional: add breathing room under the clickable dropdown title row itself */
+.ikat-step-title--dropdown {
+  padding-bottom: 10px;
+}

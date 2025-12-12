@@ -1,12 +1,8 @@
-// src/components/loading/LoadingTitleStatic.jsx
 import React, { useEffect, useRef } from "react";
 import p5 from "p5";
 
 /**
  * DiamondTitleFinal (breathing)
- * - Final filled diamond grid look (no morph), but with a subtle "breathing" width animation.
- * - Each diamond's width oscillates between wMax and wMin using a smooth sine wave.
- * - Slight per-diamond phase offsets so the whole word feels alive, not synchronized.
  */
 export default function DiamondTitleFinal({
   className,
@@ -38,27 +34,32 @@ export default function DiamondTitleFinal({
 
   /** Breathing animation controls */
   breathe = true,
-  // Design-space (pre-scale) min/max widths for the diamonds.
-  // Per your ask: fluctuate from 32 -> 20 (design units) after scaling.
   breathWMaxDesign = 32,
   breathWMinDesign = 20,
-  breathPeriodMs = 600, // how long one inhale/exhale takes
-  breathEasing = "sin", // "sin" | "cos" (sin is fine)
-  fps = 30, // cap to save battery
+  breathPeriodMs = 600,
+  breathEasing = "sin",
+  fps = 30,
 
   /** Sub-structure of the diamond grid */
-  subRows = 3, // vertical sub-rows per grid row (your style)
-  rowHBase = 6, // design space base row height
-  colWBase = 9, // design space base column width
-  diamondHBase = 3.2, // design space base diamond height
-  stagger = true, // stagger every other row
+  subRows = 3,
+  rowHBase = 6,
+  colWBase = 9,
+  diamondHBase = 3.2,
+  stagger = true,
 }) {
   const hostRef = useRef(null);
   const p5Ref = useRef(null);
   const roRef = useRef(null);
 
   useEffect(() => {
-    if (!hostRef.current) return;
+    const host = hostRef.current;
+    if (!host) return;
+
+    // 🔧 SAFETY: remove any previous canvases / children so we don't
+    // accidentally stack multiple p5 instances in the same container.
+    while (host.firstChild) {
+      host.removeChild(host.firstChild);
+    }
 
     const sketch = (p) => {
       let TEXT_PX;
@@ -132,7 +133,6 @@ export default function DiamondTitleFinal({
 
       // tiny deterministic noise from x,y to de-sync phases
       const hash2 = (x, y) => {
-        // simple float hash in [0,1)
         const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
         return s - Math.floor(s);
       };
@@ -202,7 +202,6 @@ export default function DiamondTitleFinal({
         makeBuffer();
         makeParts();
 
-        // redraw immediately
         p.redraw();
       };
 
@@ -249,8 +248,6 @@ export default function DiamondTitleFinal({
       };
 
       function breathLerp01(t) {
-        // t in radians; outputs 0..1 easing
-        // sin-based ease (smooth in/out)
         const s = Math.sin(t) * 0.5 + 0.5;
         return s;
       }
@@ -258,26 +255,23 @@ export default function DiamondTitleFinal({
       p.draw = () => {
         p.clear();
 
-        // time phase (global)
         const elapsed = p.millis() - t0;
         const basePhase = (elapsed / breathPeriodMs) * Math.PI * 2;
 
         for (let i = 0; i < parts.length; i++) {
           const pr = parts[i];
 
-          // local width (breathe)
           let wNow;
           if (breathe) {
-            const t = basePhase + pr.phase; // de-synced per diamond
+            const t = basePhase + pr.phase;
             const k =
               breathEasing === "cos"
                 ? Math.cos(t) * -0.5 + 0.5
                 : breathLerp01(t);
 
-            const wTarget = p.lerp(WMIN, WMAX, k); // between 20..32 (scaled)
-            wNow = wTarget * pr.a; // respect glyph coverage alpha
+            const wTarget = p.lerp(WMIN, WMAX, k);
+            wNow = wTarget * pr.a;
           } else {
-            // static at max-ish
             wNow = WMAX * pr.a;
           }
 
@@ -302,16 +296,20 @@ export default function DiamondTitleFinal({
       p.onResizeHost = resizeToParent;
     };
 
-    p5Ref.current = new p5(sketch, hostRef.current);
+    p5Ref.current = new p5(sketch, host);
 
     roRef.current = new ResizeObserver(() => {
       if (p5Ref.current?.onResizeHost) p5Ref.current.onResizeHost();
     });
-    roRef.current.observe(hostRef.current);
+    roRef.current.observe(host);
 
     return () => {
       roRef.current?.disconnect();
-      p5Ref.current?.remove();
+      roRef.current = null;
+      if (p5Ref.current) {
+        p5Ref.current.remove();
+        p5Ref.current = null;
+      }
     };
   }, [
     textPx,

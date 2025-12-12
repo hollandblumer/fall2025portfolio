@@ -1,0 +1,28 @@
+.templates-page {
+  background: #fefefe;
+  padding: 80px 10px;
+  background: #d7dad2;
+  background: #c4c2c2;
+  background: #c5c5c5;
+
+  margin: 0 auto;
+}
+.templates-title {
+  display: inline-block;
+  min-width: 20ch;
+  font-size: 90px;
+}
+
+.template-i-frame {
+  border: none;
+  outline: none;
+  width: 100vw;
+}
+
+@media (max-width: 700px) {
+  .template-i-frame {
+    height: 140px; /* smaller height */
+
+    margin-top: -40px; /* optional: fix spacing caused by scale */
+  }
+}

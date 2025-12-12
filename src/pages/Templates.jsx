@@ -1,137 +1,192 @@
-import { useMemo, useState, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import ElasticMenu from "../components/nav/ElasticMenu";
+import SmearEffect from "../components/templates/SmearEffect";
+import IkatText from "../components/templates/IkatText";
 
-// --- Example data (swap with your real templates) ---
-const TEMPLATES = [
-  {
-    id: "vevo",
-    title: "Vevo",
-    image: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800",
-    blurb: "A dynamic visual language for a music video network.",
-    categories: ["featured", "3d"],
-  },
-  {
-    id: "dichotomies",
-    title: "Dichotomies",
-    image: "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?w=800",
-    blurb:
-      "Simple vs. complex—pushing into the 'simple & interesting' quadrant.",
-    categories: ["featured", "2d", "creative"],
-  },
-  {
-    id: "ytm-recap-2023",
-    title: "YouTube Music: Recap 2023",
-    image: "https://images.unsplash.com/photo-1511765224389-37f0e77cf0eb?w=800",
-    blurb: "Animated illustrations celebrating a year of listening.",
-    categories: ["featured", "2d"],
-  },
-  {
-    id: "shader-playground",
-    title: "Shader Playground",
-    image: "https://images.unsplash.com/photo-1540397103387-3d1fca6c86b6?w=800",
-    blurb: "Creative-code experiments with 3D shaders.",
-    categories: ["creative", "3d"],
-  },
-  {
-    id: "editorial-layout",
-    title: "Editorial Layout",
-    image: "https://images.unsplash.com/photo-1581093588401-16a84f1f777b?w=800",
-    blurb: "A featured editorial project using bold 2D graphics.",
-    categories: ["2d"],
-  },
-  {
-    id: "code-sculpture",
-    title: "Code Sculpture",
-    image: "https://images.unsplash.com/photo-1551292831-023188e78222?w=800",
-    blurb: "Interactive creative code meets 3D modeling.",
-    categories: ["creative", "3d"],
-  },
-];
+const FILTERS = ["Smear Effect", "Ikat Text"];
 
-// Button set you asked for (labels can be anything; we normalize internally)
-const FILTERS = ["featured", "all", "creative code", "3d", "2d"];
-
-// Normalize string → slug (e.g., "Creative Code" => "creative")
-const toKey = (label) => {
-  const s = label.trim().toLowerCase();
-  return s === "creative code" ? "creative" : s;
-};
+// Utility to normalize filter keys
+const toKey = (label) => label.trim().toLowerCase().replace(/\s+/g, "-");
 
 export default function Templates() {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  // Default to the smear-effect tag, or adjust if you want a different default
+  const [activeFilter, setActiveFilter] = useState("smear-effect");
+  // Detect mobile/tablet (simplest reliable check)
+  const [isMobileOrTablet, setIsMobileOrTablet] = useState(false);
 
-  // Read initial filter from ?cat= (e.g., /templates?cat=3d) or default to "featured"
-  const params = new URLSearchParams(location.search);
-  const initialFilter = toKey(params.get("cat") || "featured");
-
-  const [active, setActive] = useState(initialFilter);
-
-  // Keep URL in sync when the active filter changes
+  // Handle screen size check
   useEffect(() => {
-    const q = new URLSearchParams(location.search);
-    if (active === "featured") {
-      q.delete("cat"); // keep default clean
-    } else {
-      q.set("cat", active);
-    }
-    navigate({ search: q.toString() }, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active]);
+    const checkScreenSize = () => {
+      // Set the breakpoint for mobile/tablet (e.g., up to 1024px)
+      setIsMobileOrTablet(window.innerWidth <= 1024);
+    };
 
-  const visibleTemplates = useMemo(() => {
-    if (active === "all") return TEMPLATES;
-    return TEMPLATES.filter((t) => t.categories.map(toKey).includes(active));
-  }, [active]);
+    // Initial check
+    checkScreenSize();
+
+    // Listen for window resize events
+    window.addEventListener("resize", checkScreenSize);
+
+    // Cleanup the event listener on component unmount
+    return () => window.removeEventListener("resize", checkScreenSize);
+  }, []);
+
+  // Pick different HTML + different scale param
+  const iframeSrc = isMobileOrTablet
+    ? "./SmearTextWork.html?text=TEMPLATES&scale=1.2" // Smaller scale on mobile
+    : "./SmearTextWork.html?text=TEMPLATES&scale=3.0"; // Bigger on desktop
+
+  // Helper to determine what content to display
+  const renderActiveTemplate = () => {
+    switch (activeFilter) {
+      case "smear-effect":
+        return (
+          <SmearEffect
+            imageUrl="https://assets.codepen.io/9259849/Screenshot%202025-11-26%20at%202.51.05%E2%80%AFPM.png"
+            freqX={0.05}
+            freqY={0.1}
+            baseWaveAmp={80}
+            fineWaveAmp={15}
+            initialMeltYRatio={0.75}
+            meltDurationMs={20000}
+          />
+        );
+      case "ikat-text":
+        // 3. RENDER THE NEW COMPONENT
+        return <IkatText />;
+      default:
+        return <SmearEffect />; // Fallback to SmearEffect
+    }
+  };
 
   return (
-    <main className="projects-section page">
-      <header className="projects-header">
-        <h2>Templates</h2>
-        <nav className="filter-menu" aria-label="Template categories">
-          {FILTERS.map((label) => {
-            const key = toKey(label);
-            const isActive = key === active;
-            return (
-              <button
-                key={key}
-                className={`filter-button ${isActive ? "active" : ""}`}
-                aria-pressed={isActive}
-                onClick={() => setActive(key)}
+    <>
+      <div className="mobile-social-icons">
+        <a
+          href="https://instagram.com/hollandblumer"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <i className="fa-brands fa-instagram"></i>
+        </a>
+        <a
+          href="https://linkedin.com/in/hollandblumer"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <i className="fa-brands fa-linkedin"></i>
+        </a>
+      </div>
+
+      {/* Elastic Menu and Desktop Icons */}
+      <div className="work-nav">
+        <div className="work-menu-wrapper">
+          <ElasticMenu
+            isOpen={menuOpen}
+            onClick={() => setMenuOpen((prev) => !prev)}
+          />
+        </div>
+        <div className="work-desktop-social-icons">
+          <a
+            href="https://instagram.com/hollandblumer"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <i className="fa-brands fa-instagram"></i>
+          </a>
+          <a
+            href="https://linkedin.com/in/hollandblumer"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <i className="fa-brands fa-linkedin"></i>
+          </a>
+        </div>
+        <aside className={`slideout-menu ${menuOpen ? "open" : ""}`}>
+          <ul>
+            <li>
+              <Link to="/work" onClick={() => setMenuOpen(false)}>
+                Work
+              </Link>
+            </li>
+            <li>
+              <Link to="/#about" onClick={() => setMenuOpen(false)}>
+                About
+              </Link>
+            </li>
+            <li>
+              <Link to="/templates" onClick={() => setMenuOpen(false)}>
+                Templates
+              </Link>
+            </li>
+            <li>
+              <a
+                href="mailto:hollandblumer6@icloud.com?subject=Website%20Inquiry&body=Hi%20Holland!"
+                onClick={() => setMenuOpen(false)}
               >
-                {label.toUpperCase()}
-              </button>
-            );
-          })}
-        </nav>
-      </header>
+                Contact
+              </a>
+            </li>
+            <li>
+              <a href="/" onClick={() => setMenuOpen(false)}>
+                Home
+              </a>
+            </li>
+          </ul>
+        </aside>
+      </div>
+      <main className="templates-page page">
+        {/* === NAVIGATION & SOCIAL ICONS === */}
 
-      <section className="projects-grid" aria-live="polite">
-        {visibleTemplates.map((t) => (
-          <article key={t.id} className="project">
-            <div className="thumb">
-              <img src={t.image} alt={t.title} loading="lazy" />
-            </div>
-            <div className="meta">
-              <h3>{t.title}</h3>
-              <p>{t.blurb}</p>
-              {/* Customize actions for your flow */}
-              <div className="actions">
-                <Link className="btn" to={`/templates/${t.id}`}>
-                  Preview
-                </Link>
-                <Link className="btn secondary" to={`/customize/${t.id}`}>
-                  Customize
-                </Link>
-              </div>
-            </div>
-          </article>
-        ))}
+        {/* Mobile Social icons */}
 
-        {visibleTemplates.length === 0 && (
-          <p className="empty">No templates match this filter (yet!).</p>
-        )}
-      </section>
-    </main>
+        {/* === HEADER + FILTERS === */}
+        <div className="projects-header">
+          {/*   <DiamondTitleFinal
+            text="TEMPLATES"
+            autoResponsive
+            desktopPx={100}
+            ipadBp={1024}
+            mobileBp={700}
+            ipadScale={0.7}
+            mobileScale={0.6}
+            autoHeight
+            heightScale={1}
+          /> */}
+
+          <iframe
+            src={iframeSrc}
+            title="Squishy Letters"
+            className="template-i-frame"
+          ></iframe>
+
+          <div style={{ width: "100%", maxWidth: 1000, margin: "0 auto" }} />
+
+          {/* Filter Menu – now including “IKAT TEXT EFFECT” */}
+          <div className="filter-menu">
+            {FILTERS.map((label) => {
+              const key = toKey(label);
+              const isActive = key === activeFilter;
+              return (
+                <button
+                  key={key}
+                  className={`filter-button ${isActive ? "active" : ""}`}
+                  onClick={() => setActiveFilter(key)}
+                >
+                  {label.toUpperCase()}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* === CONTENT: ACTIVE TEMPLATE === */}
+        <div className="single-template-container">
+          {renderActiveTemplate()}
+        </div>
+      </main>
+    </>
   );
 }
